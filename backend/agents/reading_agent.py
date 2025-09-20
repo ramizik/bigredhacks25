@@ -261,7 +261,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
 
-def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
+def continue_story_with_choice(choice: str) -> Dict:
     """Continue story based on user choice using Google Gemini"""
     
     if not AI_AVAILABLE:
