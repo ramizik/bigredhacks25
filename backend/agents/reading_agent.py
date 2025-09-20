@@ -7,6 +7,7 @@ This system creates interactive children's stories with:
 - Kid-friendly language and themes
 - Interactive story choices
 - Illustration prompts for scenes
+- Video generation after 10 story iterations
 """
 
 import json
@@ -18,9 +19,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Google AI imports
 try:
@@ -46,13 +51,30 @@ except ImportError as e:
     print(f"⚠️ Could not import image agent: {e}")
     IMAGE_AGENT_AVAILABLE = False
 
+# Import video generation agent
+try:
+    from video_agent import (
+        generate_comprehensive_story_video,
+        get_video_generation_status,
+        clear_video_generation_state,
+        VIDEO_GENERATION_AVAILABLE
+    )
+    VIDEO_AGENT_AVAILABLE = True
+    print("✅ Video generation agent loaded successfully")
+    logger.info("🎬 Video generation system ready for story compilation")
+except ImportError as e:
+    print(f"⚠️ Could not import video agent: {e}")
+    logger.warning(f"⚠️ Video generation not available: {e}")
+    VIDEO_AGENT_AVAILABLE = False
+    VIDEO_GENERATION_AVAILABLE = False
+
 # ============================================================================
-# READING GAME STATE
+# ENHANCED READING GAME STATE WITH VIDEO TRACKING
 # ============================================================================
 
 @dataclass
 class StoryState:
-    """Maintains story state across interactions"""
+    """Maintains story state across interactions with video generation tracking"""
     story_id: str = ""
     theme: str = ""
     age_group: str = "5-8"
@@ -62,6 +84,51 @@ class StoryState:
     story_complete: bool = False
     illustration_prompts: List[str] = field(default_factory=list)
     user_choices_made: List[str] = field(default_factory=list)
+    
+    # Enhanced tracking for video generation
+    scene_count: int = 0  # Track total scenes/iterations
+    story_scenes: List[Dict] = field(default_factory=list)  # Store complete scene data
+    generated_images: List[str] = field(default_factory=list)  # Track all generated images
+    video_generation_triggered: bool = False
+    generated_video: Optional[str] = None
+    
+    def add_scene(self, text: str, choices: List[str], image_file: Optional[str] = None):
+        """Add a new scene to the story tracking"""
+        self.scene_count += 1
+        scene_data = {
+            "scene_number": self.scene_count,
+            "text": text,
+            "choices": choices,
+            "image_file": image_file,
+            "timestamp": datetime.now().isoformat()
+        }
+        self.story_scenes.append(scene_data)
+        
+        if image_file:
+            self.generated_images.append(image_file)
+        
+        logger.info(f"📖 Scene {self.scene_count} added to story")
+        
+        # Check if we've reached 10 iterations for video generation
+        if self.scene_count == 10 and not self.video_generation_triggered:
+            logger.info("🎬 Story reached 10 iterations - triggering video generation!")
+            self.trigger_video_generation()
+    
+    def trigger_video_generation(self):
+        """Trigger comprehensive video generation after 10 iterations"""
+        if VIDEO_AGENT_AVAILABLE and not self.video_generation_triggered:
+            self.video_generation_triggered = True
+            logger.info(f"🎬 Initiating comprehensive video generation for story {self.story_id}")
+            
+            # Prepare to generate video with all context
+            # This will be called asynchronously from the API
+            return {
+                "video_trigger": True,
+                "scenes_ready": len(self.story_scenes),
+                "images_available": len(self.generated_images),
+                "message": "🎬 Your story video will be generated with all 10 scenes!"
+            }
+        return None
 
 # Global story state
 story_state = StoryState()
@@ -156,6 +223,12 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
     
     try:
         print(f"📚 Generating kid story for theme: {theme}")
+        logger.info(f"📚 Starting new story generation - Theme: {theme}, Age: {age_group}")
+        
+        # Generate unique story ID
+        story_state.story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        story_state.theme = theme
+        story_state.age_group = age_group
         
         # Create age-appropriate prompt following dd project pattern
         system_prompt = f"""You are a professional children's book author creating stories for ages {age_group}.
@@ -216,8 +289,6 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         story_data = clean_and_parse_json(response.text, fallback_story)
         
         # Update story state
-        story_state.theme = theme
-        story_state.age_group = age_group
         story_state.paragraphs = story_data.get("paragraphs", [])
         story_state.choices = story_data.get("choices", [])
         story_state.illustration_prompts = story_data.get("illustration_prompts", [])
@@ -228,6 +299,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         
         # Generate immersive scene image based on the first paragraph
         image_result = None
+        image_file = None
         if IMAGE_AGENT_AVAILABLE and story_data.get("paragraphs"):
             first_paragraph = story_data["paragraphs"][0]
             scene_context = f"Story theme: {theme}, Setting: {story_data.get('story_title', 'Adventure')}"
@@ -240,16 +312,32 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             )
             
             if image_result.get("status") == "success":
-                print(f"✅ Scene image generated: {image_result.get('generated_file')}")
+                image_file = image_result.get('generated_file')
+                print(f"✅ Scene image generated: {image_file}")
             else:
                 print(f"⚠️ Scene image generation failed: {image_result.get('error')}")
+        
+        # Add first scene to story tracking
+        full_text = " ".join(story_data.get("paragraphs", []))
+        story_state.add_scene(
+            text=full_text,
+            choices=story_data.get("choices", []),
+            image_file=image_file
+        )
+        
+        logger.info(f"📚 Story initialized - ID: {story_state.story_id}, Scenes: {story_state.scene_count}/10")
         
         return {
             "status": "success",
             "story_data": story_data,
             "message": "AI story generated successfully!",
             "ai_powered": True,
-            "image_generation": image_result
+            "image_generation": image_result,
+            "story_progress": {
+                "scene_count": story_state.scene_count,
+                "video_at": 10,
+                "progress_percentage": (story_state.scene_count / 10) * 100
+            }
         }
         
     except json.JSONDecodeError as e:
@@ -277,6 +365,7 @@ def continue_story_with_choice(choice: str) -> Dict:
     
     try:
         print(f"📖 Continuing story with choice: {choice}")
+        logger.info(f"📖 Story continuation - Scene {story_state.scene_count + 1}/10")
         
         # Add choice to history
         story_state.user_choices_made.append(choice)
@@ -348,6 +437,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         
         # Generate immersive scene image for the new story continuation
         image_result = None
+        image_file = None
         if IMAGE_AGENT_AVAILABLE and new_paragraphs:
             latest_paragraph = new_paragraphs[-1]  # Get the most recent paragraph
             
@@ -358,6 +448,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             Current Choice Made: {choice}
             New Story Development: {latest_paragraph}
             Story Progress: Paragraph {len(story_state.paragraphs)} of ongoing adventure
+            Scene Number: {story_state.scene_count + 1}
             """
             
             print(f"🎨 Generating scene image for story continuation with full context...")
@@ -368,9 +459,29 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             )
             
             if image_result.get("status") == "success":
-                print(f"✅ Continuation scene image generated: {image_result.get('generated_file')}")
+                image_file = image_result.get('generated_file')
+                print(f"✅ Continuation scene image generated: {image_file}")
             else:
                 print(f"⚠️ Continuation scene image generation failed: {image_result.get('error')}")
+        
+        # Add new scene to story tracking
+        full_continuation_text = " ".join(new_paragraphs)
+        story_state.add_scene(
+            text=full_continuation_text,
+            choices=continuation_data.get("choices", []),
+            image_file=image_file
+        )
+        
+        # Check if video generation was triggered (at 10 iterations)
+        video_trigger_info = None
+        if story_state.scene_count == 10 and story_state.video_generation_triggered:
+            video_trigger_info = {
+                "video_triggered": True,
+                "message": "🎬 Congratulations! Your story has reached 10 scenes. A magical video is being created!",
+                "scenes_included": story_state.scene_count,
+                "images_available": len(story_state.generated_images)
+            }
+            logger.info(f"🎬 Video generation triggered at scene 10 for story {story_state.story_id}")
         
         return {
             "status": "success",
@@ -381,7 +492,13 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
                 "current_paragraph": story_state.current_paragraph
             },
             "ai_powered": True,
-            "image_generation": image_result
+            "image_generation": image_result,
+            "story_progress": {
+                "scene_count": story_state.scene_count,
+                "video_at": 10,
+                "progress_percentage": min((story_state.scene_count / 10) * 100, 100),
+                "video_trigger": video_trigger_info
+            }
         }
         
     except json.JSONDecodeError as e:
@@ -392,6 +509,42 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         error_msg = f"Story continuation failed: {str(e)}"
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
+
+def generate_story_video_async() -> Dict:
+    """Generate comprehensive story video with all 10 scenes"""
+    if not VIDEO_AGENT_AVAILABLE:
+        logger.error("❌ Video generation agent not available")
+        return {
+            "status": "error",
+            "error": "Video generation system not available"
+        }
+    
+    try:
+        logger.info(f"🎬 Starting comprehensive video generation for story {story_state.story_id}")
+        
+        # Generate the video with all story context
+        from video_agent import generate_comprehensive_story_video
+        
+        video_result = generate_comprehensive_story_video(
+            story_scenes=story_state.story_scenes,
+            story_theme=story_state.theme,
+            story_id=story_state.story_id,
+            age_group=story_state.age_group
+        )
+        
+        if video_result.get("status") == "success":
+            story_state.generated_video = video_result.get("generated_file")
+            logger.info(f"✅ Story video generated successfully: {story_state.generated_video}")
+        
+        return video_result
+        
+    except Exception as e:
+        error_msg = f"Video generation failed: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        return {
+            "status": "error",
+            "error": error_msg
+        }
 
 def generate_illustration_prompt(paragraph_text: str, scene_number: int) -> str:
     """Generate kid-friendly illustration prompt for a story scene using Google Gemini"""
@@ -436,7 +589,7 @@ def generate_illustration_prompt(paragraph_text: str, scene_number: int) -> str:
 
 
 def get_story_status() -> Dict:
-    """Get current story status"""
+    """Get current story status with video generation info"""
     return {
         "story_id": story_state.story_id,
         "theme": story_state.theme,
@@ -444,5 +597,31 @@ def get_story_status() -> Dict:
         "total_paragraphs": len(story_state.paragraphs),
         "story_complete": story_state.story_complete,
         "choices_made": len(story_state.user_choices_made),
-        "ai_available": AI_AVAILABLE
+        "ai_available": AI_AVAILABLE,
+        "scene_count": story_state.scene_count,
+        "video_generation_triggered": story_state.video_generation_triggered,
+        "generated_video": story_state.generated_video,
+        "images_generated": len(story_state.generated_images),
+        "video_progress": {
+            "current_scene": story_state.scene_count,
+            "scenes_needed_for_video": 10,
+            "ready_for_video": story_state.scene_count >= 10,
+            "percentage_to_video": min((story_state.scene_count / 10) * 100, 100)
+        }
     }
+
+def reset_story_state():
+    """Reset story state for new story"""
+    global story_state
+    story_state = StoryState()
+    
+    # Clear image generation state if available
+    if IMAGE_AGENT_AVAILABLE:
+        clear_image_generation_state()
+    
+    # Clear video generation state if available  
+    if VIDEO_AGENT_AVAILABLE:
+        clear_video_generation_state()
+    
+    logger.info("🧹 Story state reset for new adventure")
+    return {"status": "reset", "message": "Ready for new story"}

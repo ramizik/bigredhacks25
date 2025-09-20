@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import asyncio
+import threading
 
 # Add the agents directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
@@ -19,7 +20,9 @@ try:
         generate_kid_story,
         continue_story_with_choice,
         get_story_status,
-        story_state
+        story_state,
+        generate_story_video_async,
+        reset_story_state
     )
     AGENT_AVAILABLE = True
     print("✅ Reading agent loaded successfully")
@@ -40,15 +43,258 @@ except ImportError as e:
     print(f"⚠️ Could not import image agent: {e}")
     IMAGE_AGENT_AVAILABLE = False
 
-# Configure logging with emojis
-logging.basicConfig(level=logging.INFO)
+# Import video agent
+try:
+    from agents.video_agent import (
+        generate_comprehensive_story_video,
+        get_video_generation_status,
+        clear_video_generation_state,
+        VIDEO_GENERATION_AVAILABLE
+    )
+    VIDEO_AGENT_AVAILABLE = True
+    print("✅ Video agent loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Could not import video agent: {e}")
+    VIDEO_AGENT_AVAILABLE = False
+    VIDEO_GENERATION_AVAILABLE = False
+
+# Configure comprehensive logging with emojis
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('wonderkid_startup.log')
+    ]
+)
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# COMPREHENSIVE COLD START LOGGING
+# ============================================================================
+
+def log_environment_variables():
+    """Log all environment variables for debugging (excluding sensitive data)"""
+    logger.info("🔧 Environment Variables Check")
+    logger.info("=" * 50)
+    
+    # Critical environment variables
+    critical_vars = [
+        'GOOGLE_API_KEY',
+        'GOOGLE_APPLICATION_CREDENTIALS', 
+        'GOOGLE_SERVICE_ACCOUNT_JSON',
+        'MONGODB_URI',
+        'PORT',
+        'HOST'
+    ]
+    
+    for var in critical_vars:
+        value = os.getenv(var)
+        if value:
+            if 'KEY' in var or 'CREDENTIALS' in var or 'URI' in var:
+                # Mask sensitive values
+                masked_value = value[:8] + "..." + value[-4:] if len(value) > 12 else "***"
+                logger.info(f"✅ {var}: {masked_value}")
+            else:
+                logger.info(f"✅ {var}: {value}")
+        else:
+            logger.warning(f"⚠️ {var}: NOT SET")
+    
+    # Optional environment variables
+    optional_vars = [
+        'NODE_ENV',
+        'PYTHONPATH',
+        'GOOGLE_CLOUD_PROJECT',
+        'GOOGLE_APPLICATION_CREDENTIALS_PATH'
+    ]
+    
+    logger.info("📋 Optional Environment Variables:")
+    for var in optional_vars:
+        value = os.getenv(var)
+        if value:
+            logger.info(f"✅ {var}: {value}")
+        else:
+            logger.info(f"⚪ {var}: not set (optional)")
+
+def test_google_ai_connection():
+    """Test Google AI services connection"""
+    logger.info("🤖 Testing Google AI Services Connection")
+    logger.info("=" * 50)
+    
+    try:
+        # Test Gemini API
+        from google import genai
+        from google.genai import types
+        
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            logger.error("❌ GOOGLE_API_KEY not found")
+            return False
+        
+        # Initialize client
+        client = genai.Client(api_key=api_key)
+        logger.info("✅ Google GenAI client initialized")
+        
+        # Test basic API call
+        try:
+            # Simple test request
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents="Hello, this is a test"
+            )
+            logger.info("✅ Gemini API connection successful")
+            return True
+        except Exception as api_error:
+            logger.error(f"❌ Gemini API test failed: {api_error}")
+            return False
+            
+    except ImportError as import_error:
+        logger.error(f"❌ Google GenAI SDK not available: {import_error}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Google AI connection test failed: {e}")
+        return False
+
+def test_mongodb_connection():
+    """Test MongoDB connection"""
+    logger.info("🍃 Testing MongoDB Connection")
+    logger.info("=" * 50)
+    
+    try:
+        from pymongo import MongoClient
+        import urllib.parse
+        
+        mongodb_uri = os.getenv('MONGODB_URI')
+        if not mongodb_uri:
+            logger.error("❌ MONGODB_URI not found")
+            return False
+        
+        # Parse URI to mask password
+        parsed_uri = urllib.parse.urlparse(mongodb_uri)
+        masked_uri = f"{parsed_uri.scheme}://{parsed_uri.netloc.split('@')[0]}@***"
+        logger.info(f"🔗 Connecting to MongoDB: {masked_uri}")
+        
+        # Test connection
+        client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+        client.admin.command('ping')
+        logger.info("✅ MongoDB connection successful")
+        
+        # Test database access
+        db = client.get_default_database()
+        collections = db.list_collection_names()
+        logger.info(f"📊 Available collections: {collections}")
+        
+        client.close()
+        return True
+        
+    except ImportError:
+        logger.error("❌ PyMongo not available")
+        return False
+    except Exception as e:
+        logger.error(f"❌ MongoDB connection failed: {e}")
+        return False
+
+def test_video_generation_setup():
+    """Test video generation setup"""
+    logger.info("🎬 Testing Video Generation Setup")
+    logger.info("=" * 50)
+    
+    try:
+        from agents.video_agent import (
+            VIDEO_GENERATION_AVAILABLE,
+            initialize_video_client,
+            get_video_generation_status
+        )
+        
+        if not VIDEO_GENERATION_AVAILABLE:
+            logger.error("❌ Video generation not available - missing dependencies")
+            return False
+        
+        logger.info("✅ Video generation dependencies available")
+        
+        # Test client initialization
+        client = initialize_video_client()
+        if client:
+            logger.info("✅ Video generation client initialized")
+        else:
+            logger.warning("⚠️ Video generation client initialization failed")
+        
+        # Get status
+        status = get_video_generation_status()
+        logger.info(f"📊 Video generation status: {status}")
+        
+        return client is not None
+        
+    except Exception as e:
+        logger.error(f"❌ Video generation setup test failed: {e}")
+        return False
+
+def comprehensive_startup_check():
+    """Run comprehensive startup checks for all services"""
+    logger.info("🚀 WonderKid API Cold Start Initialization")
+    logger.info("=" * 60)
+    logger.info(f"⏰ Startup time: {datetime.now().isoformat()}")
+    logger.info(f"🐍 Python version: {sys.version}")
+    logger.info(f"📁 Working directory: {os.getcwd()}")
+    logger.info("=" * 60)
+    
+    # Check environment variables
+    log_environment_variables()
+    logger.info("")
+    
+    # Test service connections
+    services_status = {
+        "Google AI": test_google_ai_connection(),
+        "MongoDB": test_mongodb_connection(), 
+        "Video Generation": test_video_generation_setup()
+    }
+    
+    logger.info("📊 Service Connection Summary")
+    logger.info("=" * 50)
+    for service, status in services_status.items():
+        if status:
+            logger.info(f"✅ {service}: Connected")
+        else:
+            logger.error(f"❌ {service}: Failed")
+    
+    # Overall health
+    all_services_healthy = all(services_status.values())
+    if all_services_healthy:
+        logger.info("🎉 All services are healthy and ready!")
+    else:
+        logger.warning("⚠️ Some services are not available - check logs above")
+    
+    logger.info("=" * 60)
+    return all_services_healthy
+
+# Run comprehensive startup check
+startup_health = comprehensive_startup_check()
 
 app = FastAPI(
     title="WonderKid Reading Game API",
-    description="📚 AI-Powered Interactive Reading Experience for Kids",
-    version="1.0.0"
+    description="📚 AI-Powered Interactive Reading Experience for Kids with Video Generation",
+    version="2.0.0"
 )
+
+# Startup event handler
+@app.on_event("startup")
+async def startup_event():
+    """Run additional checks on server startup"""
+    logger.info("🚀 FastAPI server starting up...")
+    logger.info(f"📊 Startup health status: {'✅ Healthy' if startup_health else '❌ Issues detected'}")
+    
+    if not startup_health:
+        logger.warning("⚠️ Server starting with degraded functionality - check startup logs")
+    
+    logger.info("🎉 WonderKid API server is ready to accept requests!")
+
+# Shutdown event handler  
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on server shutdown"""
+    logger.info("🛑 WonderKid API server shutting down...")
+    logger.info("🧹 Cleaning up resources...")
+    logger.info("👋 Goodbye!")
 
 # CORS middleware for React Native app
 app.add_middleware(
@@ -88,6 +334,19 @@ class StoryResponse(BaseModel):
     progress_percentage: int = 0
     image_url: Optional[str] = None
     image_generated: bool = False
+    scene_count: int = 0
+    video_trigger: Optional[Dict] = None
+
+class VideoGenerationRequest(BaseModel):
+    story_id: str
+    manual_trigger: bool = False
+
+class VideoStatusResponse(BaseModel):
+    status: str
+    generation_in_progress: bool
+    video_url: Optional[str] = None
+    scenes_included: int = 0
+    message: str = ""
 
 class UserProgressRequest(BaseModel):
     user_id: str
@@ -107,17 +366,74 @@ class UserProgressResponse(BaseModel):
 # User progress tracking (will be replaced with MongoDB)
 USER_PROGRESS = {}
 
+# Background video generation tracking
+VIDEO_GENERATION_TASKS = {}
+
+def trigger_background_video_generation(story_id: str):
+    """Trigger video generation in background thread"""
+    def generate_video():
+        try:
+            logger.info(f"🎬 Background video generation started for story {story_id}")
+            logger.info(f"📊 Current story state: {get_story_status()}")
+            
+            # Get story context for logging
+            story_status = get_story_status()
+            logger.info(f"📚 Story context: scenes={story_status.get('scene_count', 0)}, images={story_status.get('images_generated', 0)}")
+            
+            result = generate_story_video_async()
+            VIDEO_GENERATION_TASKS[story_id] = result
+            
+            if result.get("status") == "success":
+                logger.info(f"✅ Background video generation completed successfully for {story_id}")
+                logger.info(f"📁 Generated file: {result.get('generated_file', 'unknown')}")
+            else:
+                logger.error(f"❌ Background video generation failed for {story_id}: {result.get('error', 'unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"❌ Background video generation exception for {story_id}: {e}")
+            logger.error(f"🔍 Exception type: {type(e).__name__}")
+            logger.error(f"📋 Exception details: {str(e)}")
+            VIDEO_GENERATION_TASKS[story_id] = {
+                "status": "error",
+                "error": str(e),
+                "exception_type": type(e).__name__
+            }
+    
+    # Start video generation in background thread
+    logger.info(f"🚀 Starting background thread for video generation of story {story_id}")
+    thread = threading.Thread(target=generate_video, daemon=True)
+    thread.start()
+    VIDEO_GENERATION_TASKS[story_id] = {"status": "processing", "message": "Video generation started"}
+    logger.info(f"📊 Active video generation tasks: {len(VIDEO_GENERATION_TASKS)}")
+
 # API Health Check
 @app.get("/api/health")
 async def health_check():
     logger.info("🏥 Health check requested")
+    
+    # Get current service status
+    current_services = {
+        "reading_agent": AGENT_AVAILABLE,
+        "image_agent": IMAGE_AGENT_AVAILABLE,
+        "video_agent": VIDEO_AGENT_AVAILABLE,
+        "video_generation": VIDEO_GENERATION_AVAILABLE
+    }
+    
+    # Check if all services are still healthy
+    all_healthy = all(current_services.values()) and startup_health
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if all_healthy else "degraded",
         "service": "WonderKid Reading Game API",
-        "agent_available": AGENT_AVAILABLE,
-        "image_agent_available": IMAGE_AGENT_AVAILABLE,
+        "startup_health": startup_health,
+        "services": current_services,
         "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "environment": {
+            "python_version": sys.version,
+            "working_directory": os.getcwd(),
+            "environment_variables_loaded": len([k for k in os.environ.keys() if k.startswith(('GOOGLE_', 'MONGODB_'))])
+        }
     }
 
 # Test image endpoint for debugging
@@ -156,12 +472,15 @@ async def generate_story(request: StoryThemeRequest):
         raise HTTPException(status_code=503, detail="Reading Agent system not available")
     
     try:
+        # Reset story state for new story
+        reset_story_state()
+        
         # Use AI agent to generate story
         logger.info(f"🤖 Generating AI story for: {request.theme}")
         agent_result = generate_kid_story(request.theme, request.age_group)
         
         story_data = agent_result["story_data"]
-        story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        story_id = story_state.story_id  # Use the story ID from story_state
         
         logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
         
@@ -175,6 +494,9 @@ async def generate_story(request: StoryThemeRequest):
                 image_generated = True
                 logger.info(f"🎨 Image generated and available at: {image_url}")
         
+        # Get story progress info
+        story_progress = agent_result.get("story_progress", {})
+        
         return StoryResponse(
             story_id=story_id,
             paragraphs=story_data.get("paragraphs", []),
@@ -183,9 +505,11 @@ async def generate_story(request: StoryThemeRequest):
             illustration_prompt=story_data.get("illustration_prompts", [""])[0],
             mood=story_data.get("mood", "adventure"),
             is_complete=False,
-            progress_percentage=0,
+            progress_percentage=story_progress.get("progress_percentage", 0),
             image_url=image_url,
-            image_generated=image_generated
+            image_generated=image_generated,
+            scene_count=story_progress.get("scene_count", 0),
+            video_trigger=None
         )
         
     except Exception as e:
@@ -210,11 +534,15 @@ async def create_story(request: StoryThemeRequest):
         raise HTTPException(status_code=503, detail="Reading Agent system not available")
     
     try:
+        # Reset story state for new story
+        reset_story_state()
+        
         # Use AI agent to generate story
         logger.info(f"🤖 Generating AI story for: {request.theme}")
         agent_result = generate_kid_story(request.theme, request.age_group)
         
         story_data = agent_result["story_data"]
+        story_progress = agent_result.get("story_progress", {})
         
         # Check if image was generated
         image_info = {}
@@ -248,6 +576,8 @@ async def create_story(request: StoryThemeRequest):
             "ai_powered": agent_result.get("ai_powered", True),
             "timestamp": datetime.now().isoformat(),
             "status": "success",
+            "story_progress": story_progress,
+            "story_id": story_state.story_id,
             **image_info  # Include image information
         }
         
@@ -282,6 +612,7 @@ async def continue_story(request: StoryChoiceRequest):
         
         continuation_data = agent_result["continuation_data"]
         updated_story = agent_result["updated_story"]
+        story_progress = agent_result.get("story_progress", {})
         
         # Check if image was generated for this continuation
         image_url = None
@@ -296,10 +627,17 @@ async def continue_story(request: StoryChoiceRequest):
         # Calculate progress
         total_paragraphs = len(updated_story["paragraphs"])
         current_paragraph = updated_story["current_paragraph"]
-        progress_percentage = min((current_paragraph / max(total_paragraphs, 1)) * 100, 100)
+        progress_percentage = story_progress.get("progress_percentage", 0)
         
         # Check if story is complete
         is_complete = continuation_data.get("story_complete", False)
+        
+        # Check for video trigger at 10 iterations
+        video_trigger_info = story_progress.get("video_trigger")
+        if video_trigger_info:
+            logger.info(f"🎬 Video generation triggered for story {story_state.story_id}")
+            # Trigger background video generation
+            trigger_background_video_generation(story_state.story_id)
         
         logger.info(f"✅ Story continued successfully. Progress: {progress_percentage}%")
         
@@ -313,7 +651,9 @@ async def continue_story(request: StoryChoiceRequest):
             is_complete=is_complete,
             progress_percentage=int(progress_percentage),
             image_url=image_url,
-            image_generated=image_generated
+            image_generated=image_generated,
+            scene_count=story_progress.get("scene_count", 0),
+            video_trigger=video_trigger_info
         )
         
     except Exception as e:
@@ -327,6 +667,189 @@ async def continue_story(request: StoryChoiceRequest):
                 "timestamp": datetime.now().isoformat()
             }
         )
+
+# Generate story video endpoint
+@app.post("/api/generate-story-video")
+async def generate_story_video(request: VideoGenerationRequest):
+    """Manually trigger or check status of story video generation"""
+    logger.info(f"🎬 Video generation requested for story {request.story_id}")
+    logger.info(f"📊 Request details: manual_trigger={request.manual_trigger}")
+    
+    if not VIDEO_AGENT_AVAILABLE:
+        logger.error(f"❌ Video generation system not available for story {request.story_id}")
+        raise HTTPException(status_code=503, detail="Video generation system not available")
+    
+    try:
+        # Check if story has enough scenes
+        status = get_story_status()
+        logger.info(f"📊 Story status: scenes={status.get('scene_count', 0)}, video_triggered={status.get('video_generation_triggered', False)}")
+        
+        if status["scene_count"] < 10 and not request.manual_trigger:
+            logger.warning(f"⚠️ Story {request.story_id} not ready for video: {status['scene_count']}/10 scenes")
+            return {
+                "status": "not_ready",
+                "message": f"Story needs 10 scenes for video. Current: {status['scene_count']}/10",
+                "scenes_needed": 10 - status["scene_count"]
+            }
+        
+        # Check if video generation is already in progress
+        if request.story_id in VIDEO_GENERATION_TASKS:
+            task_status = VIDEO_GENERATION_TASKS[request.story_id]
+            logger.info(f"📊 Existing task status for {request.story_id}: {task_status.get('status', 'unknown')}")
+            
+            if task_status.get("status") == "processing":
+                logger.info(f"⏳ Video generation already in progress for story {request.story_id}")
+                return {
+                    "status": "processing",
+                    "message": "Video generation in progress. Check back in 2-3 minutes."
+                }
+            elif task_status.get("status") == "success":
+                logger.info(f"✅ Video already generated for story {request.story_id}")
+                return task_status
+            elif task_status.get("status") == "error":
+                logger.warning(f"⚠️ Previous video generation failed for story {request.story_id}, retrying...")
+        
+        # Trigger new video generation
+        logger.info(f"🚀 Starting new video generation for story {request.story_id}")
+        logger.info(f"📊 Story context: scenes={status['scene_count']}, images={status.get('images_generated', 0)}")
+        
+        trigger_background_video_generation(request.story_id)
+        
+        logger.info(f"✅ Video generation triggered successfully for story {request.story_id}")
+        
+        return {
+            "status": "started",
+            "message": "🎬 Video generation started! This will take 2-3 minutes.",
+            "story_id": request.story_id,
+            "scenes_included": status["scene_count"]
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Video generation request failed for story {request.story_id}: {str(e)}")
+        logger.error(f"🔍 Error type: {type(e).__name__}")
+        logger.error(f"📋 Error details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")
+
+# Get video generation status
+@app.get("/api/video-status/{story_id}", response_model=VideoStatusResponse)
+async def get_video_status(story_id: str):
+    """Check the status of video generation for a story"""
+    logger.info(f"📊 Checking video status for story {story_id}")
+    
+    try:
+        # Check if video generation task exists
+        if story_id in VIDEO_GENERATION_TASKS:
+            task_status = VIDEO_GENERATION_TASKS[story_id]
+            
+            if task_status.get("status") == "processing":
+                return VideoStatusResponse(
+                    status="processing",
+                    generation_in_progress=True,
+                    video_url=None,
+                    scenes_included=story_state.scene_count,
+                    message="⏳ Video is being generated. Please wait 2-3 minutes."
+                )
+            elif task_status.get("status") == "success":
+                video_file = task_status.get("generated_file")
+                return VideoStatusResponse(
+                    status="completed",
+                    generation_in_progress=False,
+                    video_url=f"/api/videos/{video_file}" if video_file else None,
+                    scenes_included=task_status.get("scenes_included", 10),
+                    message="✅ Video generation completed!"
+                )
+            else:
+                return VideoStatusResponse(
+                    status="error",
+                    generation_in_progress=False,
+                    video_url=None,
+                    scenes_included=0,
+                    message=f"❌ Video generation failed: {task_status.get('error', 'Unknown error')}"
+                )
+        
+        # Check if story has a generated video
+        status = get_story_status()
+        if status.get("generated_video"):
+            return VideoStatusResponse(
+                status="completed",
+                generation_in_progress=False,
+                video_url=f"/api/videos/{status['generated_video']}",
+                scenes_included=status.get("scene_count", 0),
+                message="✅ Video available!"
+            )
+        
+        return VideoStatusResponse(
+            status="not_started",
+            generation_in_progress=False,
+            video_url=None,
+            scenes_included=status.get("scene_count", 0),
+            message="Video generation not started"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Video status check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video status check failed: {str(e)}")
+
+# Serve generated videos
+@app.get("/api/videos/{filename}")
+async def get_generated_video(filename: str):
+    logger.info(f"🎬 Serving generated video: {filename}")
+    
+    try:
+        # Check if file exists in current directory
+        file_path = Path(filename)
+        if file_path.exists() and file_path.is_file():
+            # Return FileResponse with proper headers for mobile apps
+            return FileResponse(
+                str(file_path),
+                media_type="video/mp4",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                    "Cache-Control": "public, max-age=3600",
+                    "Accept-Ranges": "bytes"  # Enable video seeking
+                }
+            )
+        else:
+            logger.error(f"❌ Video file not found: {filename}")
+            raise HTTPException(status_code=404, detail=f"Video not found: {filename}")
+            
+    except Exception as e:
+        logger.error(f"❌ Video serving failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video serving failed: {str(e)}")
+
+# Get overall video system status
+@app.get("/api/video-system-status")
+async def get_video_system_status():
+    """Get overall video generation system status"""
+    logger.info("📊 Getting video system status")
+    
+    try:
+        video_status = {}
+        if VIDEO_AGENT_AVAILABLE:
+            from agents.video_agent import get_video_generation_status
+            video_status = get_video_generation_status()
+        
+        story_status = get_story_status() if AGENT_AVAILABLE else {}
+        
+        return {
+            "video_system_available": VIDEO_AGENT_AVAILABLE,
+            "video_generation_available": VIDEO_GENERATION_AVAILABLE,
+            "current_story_progress": {
+                "scene_count": story_status.get("scene_count", 0),
+                "ready_for_video": story_status.get("video_progress", {}).get("ready_for_video", False),
+                "video_triggered": story_status.get("video_generation_triggered", False),
+                "generated_video": story_status.get("generated_video")
+            },
+            "video_generation_stats": video_status,
+            "active_tasks": len(VIDEO_GENERATION_TASKS),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Video system status check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video system status check failed: {str(e)}")
 
 # Generate illustration for story scene
 @app.post("/api/generate-illustration")
@@ -606,7 +1129,8 @@ if __name__ == "__main__":
     
     port = int(os.environ.get("PORT", 8000))
     
-    logger.info("🚀 Starting WonderKid Reading Game API...")
+    logger.info("🚀 Starting WonderKid Reading Game API with Video Generation...")
+    logger.info(f"🎬 Video generation system: {'READY' if VIDEO_AGENT_AVAILABLE else 'NOT AVAILABLE'}")
     logger.info(f"🌐 Server will start on port: {port}")
     
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
