@@ -80,7 +80,8 @@ export default function StoryScreen() {
         educationalTheme: result.educational_theme,
         illustrationPrompts: result.illustration_prompts || [],
         imageUrl: result.image_url || null,
-        imageGenerated: result.image_generated || false
+        imageGenerated: result.image_generated || false,
+        storyId: result.story_id || `story_${Date.now()}`
       };
       
       setStoryData(aiStory);
@@ -129,24 +130,65 @@ export default function StoryScreen() {
   const handleChoice = async (choiceIndex) => {
     setPhase('loading');
     
-    // Simulate API call for choice continuation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const newParagraph = `You chose to ${storyData.choices[choiceIndex].toLowerCase()}. The adventure continues as new wonders unfold before your eyes...`;
-    
-    setStoryData(prev => ({
-      ...prev,
-      paragraphs: [...prev.paragraphs, newParagraph],
-      currentParagraph: prev.paragraphs.length,
-      iteration: prev.iteration + 1,
-      choices: prev.iteration + 1 >= prev.maxIterations ? null : [
-        "Explore the glowing cave ahead",
-        "Climb the ancient oak tree",
-        "Follow the rainbow path"
-      ]
-    }));
-    
-    setPhase('reading');
+    try {
+      // Call backend API to continue story with AI
+      const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/continue-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          choice: storyData.choices[choiceIndex],
+          story_id: storyData.storyId || 'current_story',
+          current_paragraph: storyData.currentParagraph
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Debug: Log the continuation response
+      console.log('📱 Story Continuation Response:', JSON.stringify(result, null, 2));
+      console.log('🖼️ New Image URL:', result.image_url);
+      console.log('🎨 New Image Generated:', result.image_generated);
+      
+      // Update story data with AI-generated continuation
+      setStoryData(prev => ({
+        ...prev,
+        paragraphs: result.paragraphs || prev.paragraphs,
+        currentParagraph: result.current_paragraph || prev.currentParagraph,
+        choices: result.choices || null,
+        iteration: prev.iteration + 1,
+        imageUrl: result.image_url || prev.imageUrl,
+        imageGenerated: result.image_generated || false,
+        storyId: result.story_id || prev.storyId
+      }));
+      
+      setPhase('reading');
+      
+    } catch (error) {
+      console.error('Error continuing story:', error);
+      
+      // Fallback to simple continuation if API fails
+      const newParagraph = `You chose to ${storyData.choices[choiceIndex].toLowerCase()}. The adventure continues as new wonders unfold before your eyes...`;
+      
+      setStoryData(prev => ({
+        ...prev,
+        paragraphs: [...prev.paragraphs, newParagraph],
+        currentParagraph: prev.paragraphs.length,
+        iteration: prev.iteration + 1,
+        choices: prev.iteration + 1 >= prev.maxIterations ? null : [
+          "Explore the glowing cave ahead",
+          "Climb the ancient oak tree",
+          "Follow the rainbow path"
+        ]
+      }));
+      
+      setPhase('reading');
+    }
   };
 
   const resetStory = () => {

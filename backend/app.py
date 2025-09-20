@@ -267,56 +267,66 @@ async def create_story(request: StoryThemeRequest):
             }
         )
 
-# Continue story with user choice
+# Continue story with user choice using AI
 @app.post("/api/continue-story", response_model=StoryResponse)
 async def continue_story(request: StoryChoiceRequest):
     logger.info(f"🎭 Processing choice for story {request.story_id}: {request.choice}")
     
+    if not AGENT_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Reading Agent system not available")
+    
     try:
-        # Simulate AI processing delay
-        await asyncio.sleep(1.5)
+        # Use AI agent to continue story with choice
+        logger.info(f"🤖 Continuing story with AI choice: {request.choice}")
+        agent_result = continue_story_with_choice(request.choice)
         
-        # Mock story continuation logic
-        story_data = MOCK_STORIES.get("magic_dragon", MOCK_STORIES["magic_dragon"])
+        continuation_data = agent_result["continuation_data"]
+        updated_story = agent_result["updated_story"]
         
-        # Generate next paragraph based on choice
-        next_paragraph = f"You chose to {request.choice.lower()}. The adventure continues as new wonders unfold before your eyes, and you discover even more magical surprises along the way!"
+        # Check if image was generated for this continuation
+        image_url = None
+        image_generated = False
+        if agent_result.get("image_generation") and agent_result["image_generation"].get("status") == "success":
+            generated_file = agent_result["image_generation"].get("generated_file")
+            if generated_file:
+                image_url = f"/api/images/{generated_file}"
+                image_generated = True
+                logger.info(f"🎨 Continuation image generated and available at: {image_url}")
         
-        # Add the new paragraph
-        updated_paragraphs = story_data["paragraphs"] + [next_paragraph]
-        new_current_paragraph = request.current_paragraph + 1
+        # Calculate progress
+        total_paragraphs = len(updated_story["paragraphs"])
+        current_paragraph = updated_story["current_paragraph"]
+        progress_percentage = min((current_paragraph / max(total_paragraphs, 1)) * 100, 100)
         
-        # Check if story is complete (mock: complete after 8 paragraphs)
-        is_complete = new_current_paragraph >= 8
-        progress_percentage = min((new_current_paragraph / 8) * 100, 100)
-        
-        # Generate new choices if not complete
-        new_choices = None
-        if not is_complete:
-            new_choices = [
-                "Explore the magical path ahead",
-                "Talk to the friendly forest creatures",
-                "Use your special powers to help others"
-            ]
+        # Check if story is complete
+        is_complete = continuation_data.get("story_complete", False)
         
         logger.info(f"✅ Story continued successfully. Progress: {progress_percentage}%")
         
         return StoryResponse(
             story_id=request.story_id,
-            paragraphs=updated_paragraphs,
-            current_paragraph=new_current_paragraph,
-            choices=new_choices,
-            illustration_prompt=story_data["illustration_prompts"][min(new_current_paragraph, len(story_data["illustration_prompts"]) - 1)],
+            paragraphs=updated_story["paragraphs"],
+            current_paragraph=current_paragraph,
+            choices=updated_story["choices"],
+            illustration_prompt=continuation_data.get("illustration_prompts", [""])[0],
             mood="adventure",
             is_complete=is_complete,
             progress_percentage=int(progress_percentage),
-            image_url=None,  # Mock endpoint doesn't generate images
-            image_generated=False
+            image_url=image_url,
+            image_generated=image_generated
         )
         
     except Exception as e:
         logger.error(f"❌ Story continuation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Story continuation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Story continuation failed",
+                "message": "Unable to continue story. Please check AI service configuration.",
+                "details": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
 # Generate illustration for story scene
 @app.post("/api/generate-illustration")

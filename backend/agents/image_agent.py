@@ -101,16 +101,23 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         
         # Create age-appropriate image prompt following dd project pattern
         enhanced_prompt = f"""
-        {story_text}
+        Children's book illustration: {story_text}
         
-        Style: {image_state.visual_style.art_style}
-        Color palette: {image_state.visual_style.color_palette}
-        Age group: {age_group}
-        Scene context: {scene_context}
+        Visual Style: {image_state.visual_style.art_style}
+        Color Palette: {image_state.visual_style.color_palette}
+        Target Age: {age_group}
+        Story Context: {scene_context}
         
-        Kid-friendly, safe, and positive imagery with no scary, violent, or inappropriate content.
-        Cute, friendly characters with expressive faces in a magical, whimsical atmosphere.
-        Professional children's book quality, 4K illustration quality.
+        Requirements:
+        - Kid-friendly, safe, and positive imagery
+        - No scary, violent, or inappropriate content
+        - Cute, friendly characters with expressive faces
+        - Magical, whimsical atmosphere
+        - Professional children's book quality
+        - 4K illustration quality
+        - Bright, engaging colors that appeal to children
+        - Clear, simple composition for easy understanding
+        - Consistent with previous story illustrations if any
         """
         
         print(f"🎨 Enhanced prompt created for Imagen 3.0")

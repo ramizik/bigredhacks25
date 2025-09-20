@@ -350,12 +350,20 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         image_result = None
         if IMAGE_AGENT_AVAILABLE and new_paragraphs:
             latest_paragraph = new_paragraphs[-1]  # Get the most recent paragraph
-            scene_context = f"Story continuation, Current choice: {choice}, Theme: {story_state.theme}"
             
-            print(f"🎨 Generating scene image for story continuation...")
+            # Create comprehensive story context for better image generation
+            story_context = f"""
+            Story Theme: {story_state.theme}
+            Previous Story: {' '.join(story_state.paragraphs[:-len(new_paragraphs)])}
+            Current Choice Made: {choice}
+            New Story Development: {latest_paragraph}
+            Story Progress: Paragraph {len(story_state.paragraphs)} of ongoing adventure
+            """
+            
+            print(f"🎨 Generating scene image for story continuation with full context...")
             image_result = generate_kid_friendly_image(
                 story_text=latest_paragraph,
-                scene_context=scene_context,
+                scene_context=story_context,
                 age_group=story_state.age_group
             )
             
