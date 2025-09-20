@@ -151,7 +151,7 @@ def generate_video_from_image_seed(prompt: str, seed_image_path: str, story_id: 
         )
         
         config = types.GenerateVideosConfig(
-            person_generation="dont_generate",  # Kid-safe: no person generation
+            # Removed person_generation parameter - using default for kids content
             aspect_ratio="16:9",
             number_of_videos=1,
             duration_seconds=8
@@ -458,7 +458,7 @@ def generate_direct_story_video(
         logger.info(f"🎯 Prompt preview: {enhanced_prompt[:300]}...")
         
         config = types.GenerateVideosConfig(
-            person_generation="dont_generate",
+            # Removed person_generation parameter - using default for kids content  
             aspect_ratio="16:9",
             number_of_videos=1,
             duration_seconds=8
