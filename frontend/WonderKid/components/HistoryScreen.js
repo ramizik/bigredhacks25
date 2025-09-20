@@ -1,15 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-  Alert,
+    Alert,
+    Dimensions,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 60) / 2; // Two columns with margins
@@ -95,10 +96,11 @@ export default function HistoryScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#fed7aa', '#fef3c7', '#fce7f3']}
-      style={styles.container}
-    >
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#fed7aa', '#fef3c7', '#fce7f3']}
+        style={styles.gradientContainer}
+      >
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -182,12 +184,16 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </LinearGradient>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  gradientContainer: {
     flex: 1,
   },
   scrollContainer: {

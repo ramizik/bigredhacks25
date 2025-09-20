@@ -1,15 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-  Alert,
+    Alert,
+    Dimensions,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -83,10 +84,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#d1fae5', '#dbeafe', '#f3e8ff']}
-      style={styles.container}
-    >
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#d1fae5', '#dbeafe', '#f3e8ff']}
+        style={styles.gradientContainer}
+      >
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
@@ -237,12 +239,16 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </LinearGradient>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  gradientContainer: {
     flex: 1,
   },
   scrollContainer: {

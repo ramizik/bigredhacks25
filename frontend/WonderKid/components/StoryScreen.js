@@ -7,6 +7,7 @@ import {
     Image,
     KeyboardAvoidingView,
     Platform,
+    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -212,10 +213,11 @@ export default function StoryScreen() {
   // Input Phase
   if (phase === 'input') {
     return (
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
         <LinearGradient
           colors={['#f3e8ff', '#fce7f3']}
           style={styles.gradientContainer}
@@ -276,17 +278,19 @@ export default function StoryScreen() {
             </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     );
   }
 
   // Loading Phase
   if (phase === 'loading') {
     return (
-      <LinearGradient
-        colors={['#dbeafe', '#f3e8ff']}
-        style={styles.gradientContainer}
-      >
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#dbeafe', '#f3e8ff']}
+          style={styles.gradientContainer}
+        >
         <View style={styles.loadingContainer}>
           <View style={styles.loadingIconContainer}>
             <LinearGradient
@@ -299,7 +303,8 @@ export default function StoryScreen() {
           <Text style={styles.loadingTitle}>Creating Your Story...</Text>
           <Text style={styles.loadingSubtitle}>The magic is happening! ✨</Text>
         </View>
-      </LinearGradient>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
@@ -309,10 +314,11 @@ export default function StoryScreen() {
     const progress = (storyData.iteration / storyData.maxIterations) * 100;
 
     return (
-      <LinearGradient
-        colors={['#e0f2fe', '#f0fdf4']}
-        style={styles.gradientContainer}
-      >
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#e0f2fe', '#f0fdf4']}
+          style={styles.gradientContainer}
+        >
         <ScrollView style={styles.readingContainer}>
           {/* Progress Bar */}
           <View style={styles.progressContainer}>
@@ -387,17 +393,19 @@ export default function StoryScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </LinearGradient>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
   // Choice Phase
   if (phase === 'choosing') {
     return (
-      <LinearGradient
-        colors={['#fef3c7', '#fee2e2']}
-        style={styles.gradientContainer}
-      >
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#fef3c7', '#fee2e2']}
+          style={styles.gradientContainer}
+        >
         <ScrollView style={styles.choiceContainer}>
           <View style={styles.choiceHeader}>
             <Text style={styles.choiceTitle}>Choose Your Path!</Text>
@@ -428,17 +436,19 @@ export default function StoryScreen() {
             ))}
           </View>
         </ScrollView>
-      </LinearGradient>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
   // Complete Phase
   if (phase === 'complete') {
     return (
-      <LinearGradient
-        colors={['#fef3c7', '#fed7aa']}
-        style={styles.gradientContainer}
-      >
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#fef3c7', '#fed7aa']}
+          style={styles.gradientContainer}
+        >
         <View style={styles.completeContainer}>
           <View style={styles.completeContent}>
             <Text style={styles.completeEmoji}>🎉</Text>
@@ -476,7 +486,8 @@ export default function StoryScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </LinearGradient>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
@@ -485,6 +496,9 @@ export default function StoryScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardContainer: {
     flex: 1,
   },
   gradientContainer: {

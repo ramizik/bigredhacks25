@@ -15,7 +15,7 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" backgroundColor="#f0f9ff" />
+      <StatusBar style="dark" backgroundColor="#f0f9ff" translucent={false} />
       <LinearGradient
         colors={['#fef3c7', '#fdf2f8', '#dbeafe']}
         style={styles.gradient}
