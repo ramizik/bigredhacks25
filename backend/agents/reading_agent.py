@@ -12,6 +12,7 @@ This system creates interactive children's stories with:
 import json
 import asyncio
 import time
+import re
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -65,6 +66,58 @@ class StoryState:
 # Global story state
 story_state = StoryState()
 
+def clean_and_parse_json(response_text: str, fallback_data: dict) -> dict:
+    """Clean and parse JSON response with multiple fallback strategies"""
+    try:
+        # First try direct parsing
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+    
+    try:
+        # Clean the response text
+        cleaned_text = response_text.strip()
+        
+        # Remove any markdown code blocks
+        cleaned_text = re.sub(r'```json\s*', '', cleaned_text)
+        cleaned_text = re.sub(r'```\s*$', '', cleaned_text)
+        
+        # Remove any text before the first {
+        json_start = cleaned_text.find('{')
+        if json_start > 0:
+            cleaned_text = cleaned_text[json_start:]
+        
+        # Remove any text after the last }
+        json_end = cleaned_text.rfind('}')
+        if json_end >= 0:
+            cleaned_text = cleaned_text[:json_end + 1]
+        
+        # Try parsing the cleaned text
+        return json.loads(cleaned_text)
+    except json.JSONDecodeError:
+        pass
+    
+    try:
+        # Try to fix common JSON issues
+        fixed_text = response_text
+        
+        # Fix single quotes to double quotes
+        fixed_text = re.sub(r"'([^']*)':", r'"\1":', fixed_text)
+        fixed_text = re.sub(r":\s*'([^']*)'", r': "\1"', fixed_text)
+        
+        # Remove trailing commas
+        fixed_text = re.sub(r',\s*}', '}', fixed_text)
+        fixed_text = re.sub(r',\s*]', ']', fixed_text)
+        
+        return json.loads(fixed_text)
+    except json.JSONDecodeError:
+        pass
+    
+    # If all parsing attempts fail, return fallback data
+    print(f"⚠️ All JSON parsing attempts failed. Using fallback data.")
+    print(f"🔍 Raw response (first 200 chars): {response_text[:200]}...")
+    return fallback_data
+
 def initialize_genai_client():
     """Initialize Google GenAI client following dd project pattern"""
     if not AI_AVAILABLE:
@@ -100,28 +153,27 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
         print(f"📚 Generating kid story for theme: {theme}")
         
         # Create age-appropriate prompt following dd project pattern
-        system_prompt = f"""
-        You are a professional children's book author creating stories for ages {age_group}.
-        
-        REQUIREMENTS:
-        - Create a magical, positive story about: {theme}
-        - Use simple, age-appropriate language
-        - Include 3-4 short paragraphs (2-3 sentences each)
-        - Make it engaging but not scary
-        - Include friendly characters
-        - End with 3 choices for what happens next
-        - Make it educational and fun
-        
-        FORMAT your response as JSON:
-        {{
-            "story_title": "title here",
-            "paragraphs": ["paragraph 1", "paragraph 2", "paragraph 3"],
-            "choices": ["choice 1", "choice 2", "choice 3"],
-            "illustration_prompts": ["scene 1 description", "scene 2 description", "scene 3 description"],
-            "mood": "adventure/magical/friendship",
-            "educational_theme": "what kids learn from this story"
-        }}
-        """
+        system_prompt = f"""You are a professional children's book author creating stories for ages {age_group}.
+
+REQUIREMENTS:
+- Create a magical, positive story about: {theme}
+- Use simple, age-appropriate language
+- Include 3-4 short paragraphs (2-3 sentences each)
+- Make it engaging but not scary
+- Include friendly characters
+- End with 3 choices for what happens next
+- Make it educational and fun
+
+IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
+
+{{
+    "story_title": "title here",
+    "paragraphs": ["paragraph 1", "paragraph 2", "paragraph 3"],
+    "choices": ["choice 1", "choice 2", "choice 3"],
+    "illustration_prompts": ["scene 1 description", "scene 2 description", "scene 3 description"],
+    "mood": "adventure",
+    "educational_theme": "what kids learn from this story"
+}}"""
         
         # Generate story using client - following dd project pattern
         response = client.models.generate_content(
@@ -134,8 +186,29 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
             )
         )
         
-        # Parse response
-        story_data = json.loads(response.text)
+        # Parse response with robust JSON cleaning
+        fallback_story = {
+            "story_title": f"Your {theme.title()} Adventure",
+            "paragraphs": [
+                f"Once upon a time, there was a wonderful {theme} adventure waiting to unfold.",
+                "The story continues with magical moments and exciting discoveries.",
+                "Every choice you make shapes this amazing journey."
+            ],
+            "choices": [
+                "Explore the magical path",
+                "Meet new friends along the way", 
+                "Discover hidden treasures"
+            ],
+            "illustration_prompts": [
+                f"A magical {theme} adventure scene with bright colors",
+                "Friendly characters in a whimsical setting",
+                "An exciting discovery moment"
+            ],
+            "mood": "adventure",
+            "educational_theme": "courage and friendship"
+        }
+        
+        story_data = clean_and_parse_json(response.text, fallback_story)
         
         # Update story state
         story_state.theme = theme
@@ -204,30 +277,29 @@ def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
         story_state.user_choices_made.append(choice)
         
         # Create continuation prompt
-        system_prompt = f"""
-        You are continuing a children's story for ages {story_state.age_group}.
-        
-        STORY CONTEXT:
-        - Theme: {story_state.theme}
-        - Previous paragraphs: {' '.join(story_state.paragraphs)}
-        - User chose: {choice}
-        
-        REQUIREMENTS:
-        - Continue the story based on the user's choice
-        - Add 2-3 new paragraphs
-        - Keep it age-appropriate and positive
-        - Create 3 new choices for what happens next
-        - Make it engaging and educational
-        
-        FORMAT your response as JSON:
-        {{
-            "continuation_paragraphs": ["new paragraph 1", "new paragraph 2"],
-            "choices": ["new choice 1", "new choice 2", "new choice 3"],
-            "illustration_prompts": ["new scene description"],
-            "story_complete": false,
-            "educational_message": "what kids learn from this part"
-        }}
-        """
+        system_prompt = f"""You are continuing a children's story for ages {story_state.age_group}.
+
+STORY CONTEXT:
+- Theme: {story_state.theme}
+- Previous paragraphs: {' '.join(story_state.paragraphs)}
+- User chose: {choice}
+
+REQUIREMENTS:
+- Continue the story based on the user's choice
+- Add 2-3 new paragraphs
+- Keep it age-appropriate and positive
+- Create 3 new choices for what happens next
+- Make it engaging and educational
+
+IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
+
+{{
+    "continuation_paragraphs": ["new paragraph 1", "new paragraph 2"],
+    "choices": ["new choice 1", "new choice 2", "new choice 3"],
+    "illustration_prompts": ["new scene description"],
+    "story_complete": false,
+    "educational_message": "what kids learn from this part"
+}}"""
         
         response = client.models.generate_content(
             model='gemini-1.5-flash',
@@ -239,7 +311,23 @@ def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
             )
         )
         
-        continuation_data = json.loads(response.text)
+        # Parse response with robust JSON cleaning
+        fallback_continuation = {
+            "continuation_paragraphs": [
+                f"You chose to {choice}. The adventure continues with new discoveries ahead.",
+                "Your decision leads to exciting new possibilities and wonderful surprises."
+            ],
+            "choices": [
+                "Continue exploring",
+                "Look for new friends", 
+                "Discover something magical"
+            ],
+            "illustration_prompts": ["Adventure continues with new discoveries"],
+            "story_complete": False,
+            "educational_message": "Every choice leads to new adventures"
+        }
+        
+        continuation_data = clean_and_parse_json(response.text, fallback_continuation)
         
         # Update story state
         new_paragraphs = continuation_data.get("continuation_paragraphs", [])
