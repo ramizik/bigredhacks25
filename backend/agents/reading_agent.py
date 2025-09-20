@@ -31,6 +31,20 @@ except ImportError:
     AI_AVAILABLE = False
     print("⚠️ Google GenAI SDK not available. Install with: pip install google-genai")
 
+# Import image generation agent
+try:
+    from image_agent import (
+        generate_kid_friendly_image,
+        generate_character_portrait,
+        get_image_generation_status,
+        clear_image_generation_state
+    )
+    IMAGE_AGENT_AVAILABLE = True
+    print("✅ Image generation agent loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Could not import image agent: {e}")
+    IMAGE_AGENT_AVAILABLE = False
+
 # ============================================================================
 # READING GAME STATE
 # ============================================================================
@@ -134,11 +148,30 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
         
         print(f"✅ Story generated successfully: {story_data.get('story_title', 'Untitled')}")
         
+        # Generate immersive scene image based on the first paragraph
+        image_result = None
+        if IMAGE_AGENT_AVAILABLE and story_data.get("paragraphs"):
+            first_paragraph = story_data["paragraphs"][0]
+            scene_context = f"Story theme: {theme}, Setting: {story_data.get('story_title', 'Adventure')}"
+            
+            print(f"🎨 Generating immersive scene image for first paragraph...")
+            image_result = generate_kid_friendly_image(
+                story_text=first_paragraph,
+                scene_context=scene_context,
+                age_group=age_group
+            )
+            
+            if image_result.get("status") == "success":
+                print(f"✅ Scene image generated: {image_result.get('generated_file')}")
+            else:
+                print(f"⚠️ Scene image generation failed: {image_result.get('error')}")
+        
         return {
             "status": "success",
             "story_data": story_data,
             "message": "AI story generated successfully!",
-            "ai_powered": True
+            "ai_powered": True,
+            "image_generation": image_result
         }
         
     except json.JSONDecodeError as e:
@@ -220,6 +253,24 @@ def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
         
         print(f"✅ Story continued successfully")
         
+        # Generate immersive scene image for the new story continuation
+        image_result = None
+        if IMAGE_AGENT_AVAILABLE and new_paragraphs:
+            latest_paragraph = new_paragraphs[-1]  # Get the most recent paragraph
+            scene_context = f"Story continuation, Current choice: {choice}, Theme: {story_state.theme}"
+            
+            print(f"🎨 Generating scene image for story continuation...")
+            image_result = generate_kid_friendly_image(
+                story_text=latest_paragraph,
+                scene_context=scene_context,
+                age_group=story_state.age_group
+            )
+            
+            if image_result.get("status") == "success":
+                print(f"✅ Continuation scene image generated: {image_result.get('generated_file')}")
+            else:
+                print(f"⚠️ Continuation scene image generation failed: {image_result.get('error')}")
+        
         return {
             "status": "success",
             "continuation_data": continuation_data,
@@ -228,7 +279,8 @@ def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
                 "choices": story_state.choices,
                 "current_paragraph": story_state.current_paragraph
             },
-            "ai_powered": True
+            "ai_powered": True,
+            "image_generation": image_result
         }
         
     except json.JSONDecodeError as e:

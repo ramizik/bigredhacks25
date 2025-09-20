@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from pathlib import Path
 import logging
 import os
 import sys
@@ -24,6 +26,19 @@ try:
 except ImportError as e:
     print(f"⚠️ Could not import reading agent: {e}")
     AGENT_AVAILABLE = False
+
+# Import image agent
+try:
+    from agents.image_agent import (
+        generate_kid_friendly_image,
+        get_image_generation_status,
+        clear_image_generation_state
+    )
+    IMAGE_AGENT_AVAILABLE = True
+    print("✅ Image agent loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Could not import image agent: {e}")
+    IMAGE_AGENT_AVAILABLE = False
 
 # Configure logging with emojis
 logging.basicConfig(level=logging.INFO)
@@ -71,6 +86,8 @@ class StoryResponse(BaseModel):
     mood: str = "adventure"
     is_complete: bool = False
     progress_percentage: int = 0
+    image_url: Optional[str] = None
+    image_generated: bool = False
 
 class UserProgressRequest(BaseModel):
     user_id: str
@@ -98,6 +115,7 @@ async def health_check():
         "status": "healthy",
         "service": "WonderKid Reading Game API",
         "agent_available": AGENT_AVAILABLE,
+        "image_agent_available": IMAGE_AGENT_AVAILABLE,
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0"
     }
@@ -120,6 +138,16 @@ async def generate_story(request: StoryThemeRequest):
         
         logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
         
+        # Check if image was generated
+        image_url = None
+        image_generated = False
+        if agent_result.get("image_generation") and agent_result["image_generation"].get("status") == "success":
+            generated_file = agent_result["image_generation"].get("generated_file")
+            if generated_file:
+                image_url = f"/api/images/{generated_file}"
+                image_generated = True
+                logger.info(f"🎨 Image generated and available at: {image_url}")
+        
         return StoryResponse(
             story_id=story_id,
             paragraphs=story_data.get("paragraphs", []),
@@ -128,7 +156,9 @@ async def generate_story(request: StoryThemeRequest):
             illustration_prompt=story_data.get("illustration_prompts", [""])[0],
             mood=story_data.get("mood", "adventure"),
             is_complete=False,
-            progress_percentage=0
+            progress_percentage=0,
+            image_url=image_url,
+            image_generated=image_generated
         )
         
     except Exception as e:
@@ -159,6 +189,26 @@ async def create_story(request: StoryThemeRequest):
         
         story_data = agent_result["story_data"]
         
+        # Check if image was generated
+        image_info = {}
+        if agent_result.get("image_generation"):
+            image_result = agent_result["image_generation"]
+            if image_result.get("status") == "success":
+                generated_file = image_result.get("generated_file")
+                image_info = {
+                    "image_generated": True,
+                    "image_url": f"/api/images/{generated_file}" if generated_file else None,
+                    "image_file": generated_file,
+                    "scene_number": image_result.get("scene_number", 1)
+                }
+            else:
+                image_info = {
+                    "image_generated": False,
+                    "image_error": image_result.get("error", "Unknown error")
+                }
+        else:
+            image_info = {"image_generated": False}
+
         response = {
             "message": f"✨ {agent_result['message']}",
             "user_input": request.theme,
@@ -170,7 +220,8 @@ async def create_story(request: StoryThemeRequest):
             "educational_theme": story_data.get("educational_theme", ""),
             "ai_powered": agent_result.get("ai_powered", True),
             "timestamp": datetime.now().isoformat(),
-            "status": "success"
+            "status": "success",
+            **image_info  # Include image information
         }
         
         logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
@@ -231,7 +282,9 @@ async def continue_story(request: StoryChoiceRequest):
             illustration_prompt=story_data["illustration_prompts"][min(new_current_paragraph, len(story_data["illustration_prompts"]) - 1)],
             mood="adventure",
             is_complete=is_complete,
-            progress_percentage=int(progress_percentage)
+            progress_percentage=int(progress_percentage),
+            image_url=None,  # Mock endpoint doesn't generate images
+            image_generated=False
         )
         
     except Exception as e:
@@ -411,6 +464,95 @@ async def get_user_stories(user_id: str):
     except Exception as e:
         logger.error(f"❌ Story history retrieval failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Story history retrieval failed: {str(e)}")
+
+# Serve generated images
+@app.get("/api/images/{filename}")
+async def get_generated_image(filename: str):
+    logger.info(f"🖼️ Serving generated image: {filename}")
+    
+    try:
+        # Check if file exists in current directory (where images are saved)
+        file_path = Path(filename)
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(str(file_path))
+        else:
+            logger.error(f"❌ Image file not found: {filename}")
+            raise HTTPException(status_code=404, detail=f"Image not found: {filename}")
+            
+    except Exception as e:
+        logger.error(f"❌ Image serving failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Image serving failed: {str(e)}")
+
+# Generate image for existing story text
+@app.post("/api/generate-scene-image")
+async def generate_scene_image(story_text: str, scene_context: str = "", age_group: str = "5-8"):
+    logger.info(f"🎨 Generating scene image for story text")
+    
+    if not IMAGE_AGENT_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image generation system not available")
+    
+    try:
+        # Generate image using image agent
+        image_result = generate_kid_friendly_image(
+            story_text=story_text,
+            scene_context=scene_context,
+            age_group=age_group
+        )
+        
+        if image_result.get("status") == "success":
+            generated_file = image_result.get("generated_file")
+            image_url = f"/api/images/{generated_file}" if generated_file else None
+            
+            logger.info(f"✅ Scene image generated: {generated_file}")
+            
+            return {
+                "status": "success",
+                "message": "🎨 Scene image generated successfully!",
+                "image_url": image_url,
+                "generated_file": generated_file,
+                "story_text": story_text,
+                "scene_context": scene_context,
+                "age_group": age_group,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            logger.error(f"❌ Image generation failed: {image_result.get('error')}")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "Image generation failed",
+                    "message": image_result.get("error", "Unknown error"),
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+            
+    except Exception as e:
+        logger.error(f"❌ Scene image generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Scene image generation failed: {str(e)}")
+
+# Get image generation status
+@app.get("/api/image-status")
+async def get_image_status():
+    logger.info("📊 Getting image generation status")
+    
+    try:
+        if IMAGE_AGENT_AVAILABLE:
+            status = get_image_generation_status()
+            return {
+                "image_system": "available",
+                "status": status,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            return {
+                "image_system": "unavailable",
+                "message": "Image generation system not loaded",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Image status retrieval failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Image status retrieval failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
