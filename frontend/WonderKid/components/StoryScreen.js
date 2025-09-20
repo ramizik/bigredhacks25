@@ -2,16 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -51,42 +51,52 @@ export default function StoryScreen() {
 
       const result = await response.json();
       
-      // Show popup with user's input from backend
+      // Show popup with AI generation status
       Alert.alert(
-        '📚 Story Request Received!',
-        `Your story idea: "${result.user_input}"\n\nStatus: ${result.status}\nTime: ${new Date(result.timestamp).toLocaleTimeString()}`,
+        '📚 Story Created!',
+        `${result.story_title}\n\n🤖 AI Generated!\nTheme: "${result.user_input}"`,
         [
-          { text: 'Great!', style: 'default' }
+          { text: 'Start Reading!', style: 'default' }
         ]
       );
       
-      // For now, continue with mock story after API call
-      const mockStory = {
-        paragraphs: [
-          `Once upon a time, ${theme} began an amazing adventure. The sun was shining brightly as our hero discovered something magical hidden in the forest.`,
-          `As they explored deeper into the enchanted woods, mysterious sounds echoed through the trees. What could be making those strange noises?`,
-          `Suddenly, a friendly creature appeared! It had sparkling wings and a warm smile. "I can help you," it said gently.`
-        ],
+      // Use real AI-generated story data
+      const aiStory = {
+        paragraphs: result.paragraphs || [],
         currentParagraph: 0,
-        choices: [
-          "Follow the creature to its magical home",
-          "Ask the creature about the mysterious sounds", 
-          "Invite the creature to join your adventure"
-        ],
+        choices: result.choices || [],
         iteration: 1,
-        maxIterations: 10
+        maxIterations: 10,
+        storyTitle: result.story_title,
+        mood: result.mood,
+        educationalTheme: result.educational_theme,
+        illustrationPrompts: result.illustration_prompts || []
       };
       
-      setStoryData(mockStory);
+      setStoryData(aiStory);
       setPhase('reading');
       
     } catch (error) {
       console.error('Error calling backend:', error);
+      
+      // Parse error response if available
+      let errorMessage = 'Could not connect to the story server. Please check your internet connection and try again.';
+      
+      try {
+        if (error.response) {
+          const errorData = await error.response.json();
+          errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+        }
+      } catch (parseError) {
+        // Use default error message if parsing fails
+      }
+      
       Alert.alert(
-        '❌ Connection Error',
-        'Could not connect to the story server. Please check your internet connection and try again.',
+        '❌ Story Generation Failed',
+        errorMessage,
         [
-          { text: 'OK', style: 'default' }
+          { text: 'Try Again', style: 'default', onPress: () => setPhase('input') },
+          { text: 'Cancel', style: 'cancel' }
         ]
       );
       setPhase('input');

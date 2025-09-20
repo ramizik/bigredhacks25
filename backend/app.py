@@ -3,9 +3,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
 import os
+import sys
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import asyncio
+
+# Add the agents directory to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
+
+# Import reading agent
+try:
+    from agents.reading_agent import (
+        generate_kid_story,
+        continue_story_with_choice,
+        get_story_status,
+        story_state
+    )
+    AGENT_AVAILABLE = True
+    print("✅ Reading agent loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Could not import reading agent: {e}")
+    AGENT_AVAILABLE = False
 
 # Configure logging with emojis
 logging.basicConfig(level=logging.INFO)
@@ -69,33 +87,7 @@ class UserProgressResponse(BaseModel):
     achievements: List[Dict[str, Any]]
     level: int
 
-# Mock data for development (will be replaced with AI and MongoDB)
-MOCK_STORIES = {
-    "magic_dragon": {
-        "id": "magic_dragon",
-        "title": "The Magic Dragon Adventure",
-        "paragraphs": [
-            "Once upon a time, a brave little dragon named Sparkle lived in a magical forest. Sparkle had shimmering purple scales that sparkled in the sunlight.",
-            "One sunny morning, Sparkle discovered a mysterious golden key hidden under a rainbow-colored mushroom. The key seemed to glow with magical energy!",
-            "As Sparkle picked up the key, the forest around them began to shimmer and change. Trees started to sing, and flowers began to dance in the gentle breeze.",
-            "Suddenly, a wise old owl named Hoot appeared on a nearby branch. 'That key belongs to the Crystal Castle,' Hoot explained. 'But the castle is guarded by friendly forest creatures who need your help.'",
-            "Sparkle felt excited and a little nervous. The adventure was just beginning! What should Sparkle do next?"
-        ],
-        "choices": [
-            "Follow the singing trees to find the Crystal Castle",
-            "Ask Hoot the owl for more information about the forest creatures",
-            "Try to use the golden key to unlock something nearby"
-        ],
-        "illustration_prompts": [
-            "A cute purple dragon with sparkling scales in a magical forest",
-            "A golden key glowing under a rainbow mushroom",
-            "A singing tree with dancing flowers in a magical forest",
-            "A wise owl on a branch talking to a dragon",
-            "A crystal castle in the distance with friendly forest creatures"
-        ]
-    }
-}
-
+# User progress tracking (will be replaced with MongoDB)
 USER_PROGRESS = {}
 
 # API Health Check
@@ -105,90 +97,97 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "WonderKid Reading Game API",
+        "agent_available": AGENT_AVAILABLE,
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0"
     }
 
-# Generate new story based on theme
+# Generate new story based on theme using AI
 @app.post("/api/generate-story", response_model=StoryResponse)
 async def generate_story(request: StoryThemeRequest):
     logger.info(f"📚 Generating story for theme: {request.theme}")
     
+    if not AGENT_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Reading Agent system not available")
+    
     try:
-        # Simulate AI story generation delay
-        await asyncio.sleep(2)
+        # Use AI agent to generate story
+        logger.info(f"🤖 Generating AI story for: {request.theme}")
+        agent_result = generate_kid_story(request.theme, request.age_group)
         
-        # For now, use mock data - will be replaced with Google Gemini
+        story_data = agent_result["story_data"]
         story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Generate story based on theme (mock implementation)
-        if "dragon" in request.theme.lower():
-            story_data = MOCK_STORIES["magic_dragon"].copy()
-        else:
-            # Generate custom story based on theme
-            story_data = {
-                "id": story_id,
-                "title": f"The {request.theme.title()} Adventure",
-                "paragraphs": [
-                    f"Once upon a time, there was a wonderful adventure about {request.theme}. The story begins in a magical place where anything is possible.",
-                    f"As our hero explored the world of {request.theme}, they discovered amazing things that filled their heart with wonder and joy.",
-                    f"The adventure continued as new friends joined the journey, each bringing their own special magic to the story of {request.theme}.",
-                    f"Together, they faced challenges and celebrated victories, learning that the best adventures are shared with friends.",
-                    f"The story of {request.theme} was just beginning, and our hero couldn't wait to see what would happen next!"
-                ],
-                "choices": [
-                    f"Explore more about {request.theme} with your new friends",
-                    f"Ask the wise characters about the secrets of {request.theme}",
-                    f"Use your imagination to create new adventures with {request.theme}"
-                ],
-                "illustration_prompts": [
-                    f"A magical scene featuring {request.theme} with bright, kid-friendly colors",
-                    f"Adventure characters discovering {request.theme} in a beautiful landscape",
-                    f"Friends celebrating their {request.theme} adventure together",
-                    f"A whimsical illustration of {request.theme} with sparkles and magic",
-                    f"The final scene of the {request.theme} adventure with happy characters"
-                ]
-            }
-        
-        story_data["id"] = story_id
-        
-        logger.info(f"✅ Story generated successfully: {story_id}")
+        logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
         
         return StoryResponse(
             story_id=story_id,
-            paragraphs=story_data["paragraphs"],
+            paragraphs=story_data.get("paragraphs", []),
             current_paragraph=0,
-            choices=story_data["choices"],
-            illustration_prompt=story_data["illustration_prompts"][0],
-            mood="adventure",
+            choices=story_data.get("choices", []),
+            illustration_prompt=story_data.get("illustration_prompts", [""])[0],
+            mood=story_data.get("mood", "adventure"),
             is_complete=False,
             progress_percentage=0
         )
         
     except Exception as e:
-        logger.error(f"❌ Story generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
+        error_msg = f"AI story generation failed: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Story generation failed",
+                "message": "Unable to generate story. Please check AI service configuration.",
+                "details": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
-# Simple story request endpoint for testing
+# Generate story using AI agent
 @app.post("/api/create-story")
 async def create_story(request: StoryThemeRequest):
     logger.info(f"📝 Received story request: {request.theme}")
     
+    if not AGENT_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Reading Agent system not available")
+    
     try:
-        # Echo back the user's input to confirm it was received
+        # Use AI agent to generate story
+        logger.info(f"🤖 Generating AI story for: {request.theme}")
+        agent_result = generate_kid_story(request.theme, request.age_group)
+        
+        story_data = agent_result["story_data"]
+        
         response = {
-            "message": "Story request received successfully!",
+            "message": f"✨ {agent_result['message']}",
             "user_input": request.theme,
+            "story_title": story_data.get("story_title", "Your Adventure"),
+            "paragraphs": story_data.get("paragraphs", []),
+            "choices": story_data.get("choices", []),
+            "illustration_prompts": story_data.get("illustration_prompts", []),
+            "mood": story_data.get("mood", "magical"),
+            "educational_theme": story_data.get("educational_theme", ""),
+            "ai_powered": agent_result.get("ai_powered", True),
             "timestamp": datetime.now().isoformat(),
             "status": "success"
         }
         
-        logger.info(f"✅ Story request processed: {request.theme}")
+        logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
         return response
         
     except Exception as e:
-        logger.error(f"❌ Story request failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Story request failed: {str(e)}")
+        error_msg = f"AI story generation failed: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Story generation failed",
+                "message": "Unable to generate story. Please check AI service configuration.",
+                "details": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
 # Continue story with user choice
 @app.post("/api/continue-story", response_model=StoryResponse)
