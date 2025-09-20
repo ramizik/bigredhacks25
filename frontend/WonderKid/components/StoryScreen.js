@@ -1,517 +1,1091 @@
-import React, { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
+    Animated,
     Dimensions,
     Image,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import VideoPlayerScreen from './VideoPlayerScreen';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
+const { width, height } = Dimensions.get('window');
 
-const StoryScreen = ({ route, navigation }) => {
-  const { theme } = route.params || { theme: 'adventure' };
-  const [story, setStory] = useState(null);
-  const [currentParagraph, setCurrentParagraph] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [selectedChoice, setSelectedChoice] = useState(null);
-  const [storyImages, setStoryImages] = useState({});
-  const [sceneCount, setSceneCount] = useState(0);
+export default function StoryScreen() {
+  const [phase, setPhase] = useState('input'); // 'input' | 'loading' | 'reading' | 'choosing' | 'complete'
+  const [userInput, setUserInput] = useState('');
+  const [storyData, setStoryData] = useState({
+    paragraphs: [],
+    currentParagraph: 0,
+    iteration: 1,
+    maxIterations: 10,
+    choices: null,
+    imageUrl: null,
+    imageGenerated: false,
+  });
+
+  // Video generation states
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoTriggered, setVideoTriggered] = useState(false);
 
+  // Animation refs for loading screen
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const pulseValue = useRef(new Animated.Value(1)).current;
+  const fadeValue = useRef(new Animated.Value(0)).current;
+  const [loadingMessage, setLoadingMessage] = useState("Preparing your magical adventure...");
+
+  // Animation effects for loading screen
   useEffect(() => {
-    generateStory();
-  }, [theme]);
+    if (phase === 'loading') {
+      // Start animations
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      );
+      
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseValue, {
+            toValue: 1.2,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseValue, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      
+      const fadeAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(fadeValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeValue, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
 
-  const generateStory = async () => {
-    setLoading(true);
-    try {
-      console.log('📚 Generating story for theme:', theme);
-      
-      const response = await fetch(`${API_URL}/api/generate-story`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          theme: theme,
-          age_group: '5-8',
-          reading_level: 'beginner'
-        }),
-      });
-      
-      const data = await response.json();
-      console.log('📖 Story generated:', data);
-      
-      setStory(data);
-      setCurrentParagraph(0);
-      setSceneCount(data.scene_count || 1);
-      
-      // Store image if generated
-      if (data.image_url) {
-        setStoryImages(prev => ({
-          ...prev,
-          0: data.image_url
-        }));
-      }
-      
-    } catch (error) {
-      console.error('❌ Error generating story:', error);
-      Alert.alert('Error', 'Failed to generate story. Please try again.');
-    } finally {
-      setLoading(false);
+      // Start all animations
+      spinAnimation.start();
+      pulseAnimation.start();
+      fadeAnimation.start();
+
+      // Set a single, static loading message
+      setLoadingMessage("Creating your magical story...");
+
+      return () => {
+        spinAnimation.stop();
+        pulseAnimation.stop();
+        fadeAnimation.stop();
+      };
     }
-  };
+  }, [phase, spinValue, pulseValue, fadeValue]);
 
-  const handleChoice = async (choice) => {
-    setSelectedChoice(choice);
-    setImageLoading(true);
+  // Call backend API to create story
+  const generateStory = async (theme) => {
+    setPhase('loading');
     
     try {
-      console.log('🎯 Selected choice:', choice);
-      
-      const response = await fetch(`${API_URL}/api/continue-story`, {
+      // Call backend API
+      const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/create-story', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          choice: choice,
-          story_id: story.story_id,
-          current_paragraph: currentParagraph,
+          theme: theme,
+          age_group: "5-8",
+          reading_level: "beginner"
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
       
-      const data = await response.json();
-      console.log('📖 Story continued:', data);
+      // Debug: Log the full response to see image data
+      console.log('📱 Full API Response:', JSON.stringify(result, null, 2));
+      console.log('🖼️ Image URL:', result.image_url);
+      console.log('🎨 Image Generated:', result.image_generated);
       
-      // Update story with new content
-      setStory(prev => ({
-        ...prev,
-        paragraphs: data.paragraphs,
-        choices: data.choices,
-        current_paragraph: data.current_paragraph,
-        is_complete: data.is_complete,
-        progress_percentage: data.progress_percentage,
-      }));
+      // Use real AI-generated story data
+      const aiStory = {
+        paragraphs: result.paragraphs || [],
+        currentParagraph: 0,
+        choices: result.choices || [],
+        iteration: 1,
+        maxIterations: 10,
+        storyTitle: result.story_title,
+        mood: result.mood,
+        educationalTheme: result.educational_theme,
+        illustrationPrompts: result.illustration_prompts || [],
+        imageUrl: result.image_url || null,
+        imageGenerated: result.image_generated || false,
+        storyId: result.story_id || `story_${Date.now()}`
+      };
       
-      // Update scene count
-      setSceneCount(data.scene_count || sceneCount + 1);
+      setStoryData(aiStory);
+      setPhase('reading');
       
-      // Store new image if generated
-      if (data.image_url) {
-        const paragraphIndex = data.current_paragraph;
-        setStoryImages(prev => ({
-          ...prev,
-          [paragraphIndex]: data.image_url
-        }));
+    } catch (error) {
+      console.error('Error calling backend:', error);
+      
+      // Parse error response if available
+      let errorMessage = 'Could not connect to the story server. Please check your internet connection and try again.';
+      
+      try {
+        if (error.response) {
+          const errorData = await error.response.json();
+          errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+        }
+      } catch (parseError) {
+        // Use default error message if parsing fails
       }
       
-      // Check for video trigger
-      if (data.video_trigger && !videoTriggered) {
+      Alert.alert(
+        '❌ Story Generation Failed',
+        errorMessage,
+        [
+          { text: 'Try Again', style: 'default', onPress: () => setPhase('input') },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+      setPhase('input');
+    }
+  };
+
+  const handleNext = () => {
+    if (storyData.currentParagraph < storyData.paragraphs.length - 1) {
+      setStoryData(prev => ({
+        ...prev,
+        currentParagraph: prev.currentParagraph + 1
+      }));
+    } else if (storyData.choices && storyData.iteration < storyData.maxIterations) {
+      setPhase('choosing');
+    } else {
+      setPhase('complete');
+    }
+  };
+
+  const handleChoice = async (choiceIndex) => {
+    setPhase('loading');
+    
+    try {
+      // Call backend API to continue story with AI
+      const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/continue-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          choice: storyData.choices[choiceIndex],
+          story_id: storyData.storyId || 'current_story',
+          current_paragraph: storyData.currentParagraph
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Debug: Log the continuation response
+      console.log('📱 Story Continuation Response:', JSON.stringify(result, null, 2));
+      console.log('🖼️ New Image URL:', result.image_url);
+      console.log('🎨 New Image Generated:', result.image_generated);
+      
+      // Update story data with AI-generated continuation
+      setStoryData(prev => ({
+        ...prev,
+        paragraphs: result.paragraphs || prev.paragraphs,
+        currentParagraph: result.current_paragraph || prev.currentParagraph,
+        choices: result.choices || null,
+        iteration: prev.iteration + 1,
+        imageUrl: result.image_url || prev.imageUrl,
+        imageGenerated: result.image_generated || false,
+        storyId: result.story_id || prev.storyId
+      }));
+      
+      // Check for video generation trigger at 10th iteration
+      if (result.video_trigger || storyData.iteration + 1 >= 10) {
+        console.log('🎬 Video generation triggered!');
         setVideoTriggered(true);
         Alert.alert(
-          '🎬 Video Generation Triggered!',
-          'Congratulations! Your story has reached 10 scenes. A magical video is being created with all your story scenes!',
+          '🎬 Amazing!',
+          'You\'ve completed 10 scenes! Your story video is being created. This will take 2-3 minutes.',
           [
-            { 
-              text: 'Watch Video', 
+            {
+              text: 'Watch Video',
               onPress: () => setShowVideoPlayer(true)
             },
-            { 
-              text: 'Continue Reading', 
+            {
+              text: 'Continue Reading',
               style: 'cancel'
             }
           ]
         );
       }
       
-      setCurrentParagraph(data.current_paragraph);
-      setSelectedChoice(null);
+      setPhase('reading');
       
     } catch (error) {
-      console.error('❌ Error continuing story:', error);
-      Alert.alert('Error', 'Failed to continue story. Please try again.');
-    } finally {
-      setImageLoading(false);
+      console.error('Error continuing story:', error);
+      
+      // Fallback to simple continuation if API fails
+      const newParagraph = `You chose to ${storyData.choices[choiceIndex].toLowerCase()}. The adventure continues as new wonders unfold before your eyes...`;
+      
+      setStoryData(prev => ({
+        ...prev,
+        paragraphs: [...prev.paragraphs, newParagraph],
+        currentParagraph: prev.paragraphs.length,
+        iteration: prev.iteration + 1,
+        choices: prev.iteration + 1 >= prev.maxIterations ? null : [
+          "Explore the glowing cave ahead",
+          "Climb the ancient oak tree",
+          "Follow the rainbow path"
+        ]
+      }));
+      
+      setPhase('reading');
     }
   };
 
-  const renderSceneProgress = () => (
-    <View style={styles.progressContainer}>
-      <View style={styles.sceneCounter}>
-        <Text style={styles.sceneCounterText}>
-          Scene {sceneCount} of 10
-        </Text>
-        {sceneCount >= 10 && (
-          <TouchableOpacity 
-            style={styles.videoButton}
-            onPress={() => setShowVideoPlayer(true)}
-          >
-            <Text style={styles.videoButtonText}>🎬 Watch Video</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      <View style={styles.progressBar}>
-        <View 
-          style={[
-            styles.progressFill,
-            { width: `${Math.min((sceneCount / 10) * 100, 100)}%` }
-          ]}
-        />
-        {[...Array(10)].map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.progressMilestone,
-              { left: `${(i + 1) * 10}%` },
-              i < sceneCount && styles.progressMilestoneActive
-            ]}
-          />
-        ))}
-      </View>
-      {sceneCount < 10 && (
-        <Text style={styles.progressText}>
-          {10 - sceneCount} more scenes until video generation! 🎬
-        </Text>
-      )}
-      {sceneCount >= 10 && videoTriggered && (
-        <Text style={styles.progressCompleteText}>
-          ✨ Video generation in progress! Continue reading while we create your magical video!
-        </Text>
-      )}
-    </View>
-  );
+  const resetStory = () => {
+    setPhase('input');
+    setUserInput('');
+    setVideoTriggered(false);
+    setStoryData({
+      paragraphs: [],
+      currentParagraph: 0,
+      iteration: 1,
+      maxIterations: 10,
+      choices: null,
+    });
+  };
 
-  const renderStoryContent = () => {
-    if (!story) return null;
-    
-    const currentImage = storyImages[currentParagraph] || storyImages[0];
-    
+  const generateVideo = () => {
+    setShowVideoPlayer(true);
+  };
+
+  // Input Phase
+  if (phase === 'input') {
     return (
-      <ScrollView style={styles.storyContainer}>
-        {/* Scene Progress */}
-        {renderSceneProgress()}
-        
-        {/* Story Title */}
-        <Text style={styles.storyTitle}>
-          {theme.charAt(0).toUpperCase() + theme.slice(1)} Adventure
-        </Text>
-        
-        {/* Illustration */}
-        {currentImage && (
-          <View style={styles.imageContainer}>
-            {imageLoading && (
-              <ActivityIndicator 
-                size="large" 
-                color="#FFD700" 
-                style={styles.imageLoader}
-              />
-            )}
-            <Image
-              source={{ uri: `${API_URL}${currentImage}` }}
-              style={styles.illustration}
-              resizeMode="cover"
-              onLoadStart={() => setImageLoading(true)}
-              onLoadEnd={() => setImageLoading(false)}
-            />
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardContainer} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+        <LinearGradient
+          colors={['#f3e8ff', '#fce7f3']}
+          style={styles.gradientContainer}
+        >
+          <ScrollView contentContainerStyle={styles.inputScrollContainer}>
+            {/* Header */}
+            <View style={styles.headerContainer}>
+              <View style={styles.headerIconContainer}>
+                <LinearGradient
+                  colors={['#8b5cf6', '#ec4899']}
+                  style={styles.headerIcon}
+                >
+                  <Ionicons name="sparkles" size={40} color="white" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.headerTitle}>Create Your Story!</Text>
+              <Text style={styles.headerSubtitle}>What adventure would you like to experience today?</Text>
+            </View>
+
+            {/* Input Area */}
+            <View style={styles.inputContainer}>
+              <View style={styles.inputCard}>
+                <TextInput
+                  value={userInput}
+                  onChangeText={setUserInput}
+                  placeholder="I want to go on an adventure with a magic dragon..."
+                  placeholderTextColor="#9ca3af"
+                  style={styles.textInput}
+                  multiline
+                  maxLength={200}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.characterCount}>
+                  {userInput.length}/200
+                </Text>
+              </View>
+            </View>
+
+            {/* Start Button */}
+            <TouchableOpacity
+              onPress={() => generateStory(userInput)}
+              style={styles.startButton}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#8b5cf6', '#ec4899']}
+                style={styles.startButtonGradient}
+              >
+                <Text style={styles.startButtonText}>
+                  Start My Story
+                </Text>
+                <Ionicons 
+                  name="arrow-forward" 
+                  size={24} 
+                  color="white" 
+                />
+              </LinearGradient>
+            </TouchableOpacity>
+          </ScrollView>
+        </LinearGradient>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // Loading Phase
+  if (phase === 'loading') {
+    const spin = spinValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#dbeafe', '#f3e8ff', '#fce7f3']}
+          style={styles.gradientContainer}
+        >
+        <View style={styles.loadingContainer}>
+          {/* Animated Magic Circle */}
+          <View style={styles.loadingIconContainer}>
+            <Animated.View
+              style={[
+                styles.magicCircle,
+                {
+                  transform: [{ rotate: spin }, { scale: pulseValue }],
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={['#3b82f6', '#8b5cf6', '#ec4899']}
+                style={styles.loadingIcon}
+              >
+                <View style={styles.spinningLogo} />
+              </LinearGradient>
+            </Animated.View>
+            
+            {/* Floating Magic Particles */}
+            <Animated.View
+              style={[
+                styles.magicParticle1,
+                {
+                  opacity: fadeValue,
+                  transform: [{ scale: pulseValue }],
+                },
+              ]}
+            >
+              <Text style={styles.particleEmoji}>✨</Text>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.magicParticle2,
+                {
+                  opacity: fadeValue,
+                  transform: [{ scale: pulseValue }],
+                },
+              ]}
+            >
+              <Text style={styles.particleEmoji}>🌟</Text>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.magicParticle3,
+                {
+                  opacity: fadeValue,
+                  transform: [{ scale: pulseValue }],
+                },
+              ]}
+            >
+              <Text style={styles.particleEmoji}>💫</Text>
+            </Animated.View>
           </View>
-        )}
-        
-        {/* Story Text */}
-        <View style={styles.textContainer}>
-          {story.paragraphs.slice(0, currentParagraph + 1).map((paragraph, index) => (
-            <Text key={index} style={styles.storyText}>
-              {paragraph}
-            </Text>
-          ))}
+          
+          {/* Static Loading Messages */}
+          <View>
+            <Text style={styles.loadingTitle}>Creating Your Story...</Text>
+            <Text style={styles.loadingSubtitle}>{loadingMessage}</Text>
+          </View>
         </View>
-        
-        {/* Choices */}
-        {!story.is_complete && story.choices && story.choices.length > 0 && (
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
+
+  // Reading Phase
+  if (phase === 'reading') {
+    const currentText = storyData.paragraphs[storyData.currentParagraph];
+    const progress = (storyData.iteration / storyData.maxIterations) * 100;
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#e0f2fe', '#f0fdf4']}
+          style={styles.gradientContainer}
+        >
+        <ScrollView style={styles.readingContainer}>
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressCard}>
+              <View style={styles.progressHeader}>
+                <Text style={styles.progressLabel}>Story Progress</Text>
+                <View style={styles.progressRight}>
+                  <Text style={styles.progressNumbers}>{storyData.iteration}/{storyData.maxIterations}</Text>
+                  {videoTriggered && (
+                    <TouchableOpacity 
+                      onPress={() => setShowVideoPlayer(true)}
+                      style={styles.watchVideoButton}
+                    >
+                      <Text style={styles.watchVideoText}>🎬 Watch Video</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBar, { width: `${progress}%` }]}>
+                  <LinearGradient
+                    colors={['#10b981', '#3b82f6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.progressBarGradient}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Story Illustration */}
+          <View style={styles.illustrationContainer}>
+            {storyData.imageGenerated && storyData.imageUrl ? (
+              <Image
+                source={{ uri: `https://bigredhacks25-331813490179.us-east4.run.app${storyData.imageUrl}` }}
+                style={styles.storyImage}
+                resizeMode="cover"
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully:', storyData.imageUrl);
+                }}
+                onError={(error) => {
+                  console.log('❌ Image load error:', error);
+                  console.log('🔗 Attempted URL:', `https://bigredhacks25-331813490179.us-east4.run.app${storyData.imageUrl}`);
+                  // Fallback to placeholder if image fails to load
+                }}
+              />
+            ) : (
+              <LinearGradient
+                colors={['#fef3c7', '#fce7f3', '#e0e7ff']}
+                style={styles.illustrationPlaceholder}
+              >
+                <Text style={styles.illustrationEmoji}>🌟</Text>
+                <Text style={styles.illustrationText}>
+                  {storyData.imageGenerated ? 'Loading Image...' : `Story Scene ${storyData.currentParagraph + 1}`}
+                </Text>
+              </LinearGradient>
+            )}
+          </View>
+
+          {/* Text Area */}
+          <View style={styles.storyTextContainer}>
+            <View style={styles.storyTextCard}>
+              <Text style={styles.storyText}>{currentText}</Text>
+            </View>
+          </View>
+
+          {/* Next Button */}
+          <View style={styles.nextButtonContainer}>
+            <TouchableOpacity
+              onPress={handleNext}
+              style={styles.nextButton}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#10b981', '#3b82f6']}
+                style={styles.nextButtonGradient}
+              >
+                <Text style={styles.nextButtonEmoji}>🐰</Text>
+                <Ionicons name="arrow-forward" size={20} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
+
+  // Choice Phase
+  if (phase === 'choosing') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#fef3c7', '#fee2e2']}
+          style={styles.gradientContainer}
+        >
+        <ScrollView style={styles.choiceContainer}>
+          <View style={styles.choiceHeader}>
+            <Text style={styles.choiceTitle}>Choose Your Path!</Text>
+            <Text style={styles.choiceSubtitle}>What happens next in your adventure?</Text>
+          </View>
+
           <View style={styles.choicesContainer}>
-            <Text style={styles.choicesTitle}>What happens next?</Text>
-            {story.choices.map((choice, index) => (
+            {storyData.choices?.map((choice, index) => (
               <TouchableOpacity
                 key={index}
-                style={[
-                  styles.choiceButton,
-                  selectedChoice === choice && styles.choiceButtonSelected
-                ]}
-                onPress={() => handleChoice(choice)}
-                disabled={imageLoading || selectedChoice !== null}
+                onPress={() => handleChoice(index)}
+                style={styles.choiceButton}
+                activeOpacity={0.8}
               >
-                <Text style={styles.choiceText}>
-                  {['🌟', '🚀', '🌈'][index % 3]} {choice}
-                </Text>
+                <View style={styles.choiceCard}>
+                  <View style={styles.choiceNumberContainer}>
+                    <LinearGradient
+                      colors={['#f97316', '#dc2626']}
+                      style={styles.choiceNumber}
+                    >
+                      <Text style={styles.choiceNumberText}>{index + 1}</Text>
+                    </LinearGradient>
+                  </View>
+                  <Text style={styles.choiceText}>{choice}</Text>
+                  <Ionicons name="arrow-forward" size={24} color="#f97316" />
+                </View>
               </TouchableOpacity>
             ))}
           </View>
-        )}
-        
-        {/* Story Complete */}
-        {story.is_complete && (
-          <View style={styles.completeContainer}>
-            <Text style={styles.completeText}>
-              🎉 The End! What a wonderful adventure!
-            </Text>
-            <TouchableOpacity
-              style={styles.newStoryButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.newStoryButtonText}>Start New Story</Text>
-            </TouchableOpacity>
-            {sceneCount >= 10 && (
-              <TouchableOpacity
-                style={styles.watchVideoButton}
-                onPress={() => setShowVideoPlayer(true)}
-              >
-                <Text style={styles.watchVideoButtonText}>
-                  🎬 Watch Your Story Video
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+        </LinearGradient>
+      </SafeAreaView>
     );
-  };
+  }
 
-  if (loading) {
+  // Complete Phase
+  if (phase === 'complete') {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.loadingText}>Creating your magical story...</Text>
+        <LinearGradient
+          colors={['#fef3c7', '#fed7aa']}
+          style={styles.gradientContainer}
+        >
+        <View style={styles.completeContainer}>
+          <View style={styles.completeContent}>
+            <Text style={styles.completeEmoji}>🎉</Text>
+            <Text style={styles.completeTitle}>Story Complete!</Text>
+            <Text style={styles.completeSubtitle}>You've created an amazing adventure!</Text>
+          </View>
+
+          <View style={styles.completeButtonsContainer}>
+            <TouchableOpacity
+              onPress={generateVideo}
+              style={styles.actionButton}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#dc2626', '#ec4899']}
+                style={styles.actionButtonGradient}
+              >
+                <Ionicons name="play" size={24} color="white" />
+                <Text style={styles.actionButtonText}>Create Story Video</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={resetStory}
+              style={styles.actionButton}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#8b5cf6', '#3b82f6']}
+                style={styles.actionButtonGradient}
+              >
+                <Ionicons name="refresh" size={24} color="white" />
+                <Text style={styles.actionButtonText}>Create New Story</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
+        </LinearGradient>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {renderStoryContent()}
-      
+    <>
       {/* Video Player Modal */}
       <Modal
         visible={showVideoPlayer}
         animationType="slide"
-        onRequestClose={() => setShowVideoPlayer(false)}
+        presentationStyle="pageSheet"
       >
         <VideoPlayerScreen
-          storyId={story?.story_id}
-          sceneCount={sceneCount}
+          storyId={storyData.storyId || 'current_story'}
           onClose={() => setShowVideoPlayer(false)}
+          sceneCount={storyData.iteration}
         />
       </Modal>
-    </SafeAreaView>
+    </>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  gradientContainer: {
+    flex: 1,
+  },
+  inputScrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  headerIconContainer: {
+    marginBottom: 16,
+  },
+  headerIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#7c3aed',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 18,
+    color: '#8b5cf6',
+    textAlign: 'center',
+  },
+  inputContainer: {
+    width: '100%',
+    marginBottom: 32,
+  },
+  inputCard: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  textInput: {
+    height: 120,
+    fontSize: 18,
+    color: '#374151',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    padding: 16,
+    textAlignVertical: 'top',
+  },
+  characterCount: {
+    textAlign: 'right',
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  startButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  startButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    minHeight: 70,
+  },
+  startButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginRight: 12,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
   },
-  loadingText: {
-    color: '#FFD700',
-    fontSize: 18,
-    marginTop: 20,
-    fontFamily: 'Comic Sans MS',
+  loadingIconContainer: {
+    marginBottom: 40,
+    position: 'relative',
   },
-  storyContainer: {
+  magicCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  spinningLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: 'rgba(255, 255, 255, 0.5)',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  magicParticle1: {
+    position: 'absolute',
+    top: -20,
+    right: -10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  magicParticle2: {
+    position: 'absolute',
+    bottom: -15,
+    left: -15,
+    width: 35,
+    height: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  magicParticle3: {
+    position: 'absolute',
+    top: 20,
+    left: -25,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  particleEmoji: {
+    fontSize: 24,
+  },
+  loadingTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1e40af',
+    textAlign: 'center',
+    marginBottom: 16,
+    textShadowColor: 'rgba(59, 130, 246, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  loadingSubtitle: {
+    fontSize: 20,
+    color: '#6366f1',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 32,
+    lineHeight: 28,
+  },
+  readingContainer: {
     flex: 1,
-    padding: 20,
+    padding: 24,
   },
   progressContainer: {
-    marginBottom: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 15,
-    padding: 15,
+    marginBottom: 16,
   },
-  sceneCounter: {
+  progressCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  sceneCounterText: {
-    color: '#FFD700',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Comic Sans MS',
-  },
-  videoButton: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  videoButtonText: {
-    color: '#1a1a2e',
+  progressLabel: {
     fontSize: 14,
-    fontWeight: 'bold',
-    fontFamily: 'Comic Sans MS',
+    fontWeight: '600',
+    color: '#6b7280',
   },
-  progressBar: {
-    height: 20,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-  },
-  progressMilestone: {
-    position: 'absolute',
-    top: 5,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    transform: [{ translateX: -5 }],
-  },
-  progressMilestoneActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  progressText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: 'center',
-    fontFamily: 'Comic Sans MS',
-  },
-  progressCompleteText: {
-    color: '#10B981',
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: 'center',
-    fontFamily: 'Comic Sans MS',
-    fontWeight: 'bold',
-  },
-  storyTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    textAlign: 'center',
-    marginBottom: 20,
-    fontFamily: 'Comic Sans MS',
-  },
-  imageContainer: {
-    width: '100%',
-    height: 250,
-    borderRadius: 15,
-    overflow: 'hidden',
-    marginBottom: 20,
-    backgroundColor: '#2a2a3e',
-    position: 'relative',
-  },
-  illustration: {
-    width: '100%',
-    height: '100%',
-  },
-  imageLoader: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -25 }, { translateY: -25 }],
-    zIndex: 1,
-  },
-  textContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-  },
-  storyText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    lineHeight: 28,
-    marginBottom: 15,
-    fontFamily: 'Comic Sans MS',
-  },
-  choicesContainer: {
-    marginBottom: 30,
-  },
-  choicesTitle: {
-    color: '#FFD700',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-    fontFamily: 'Comic Sans MS',
-  },
-  choiceButton: {
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
-  },
-  choiceButtonSelected: {
-    backgroundColor: 'rgba(255, 215, 0, 0.4)',
-  },
-  choiceText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Comic Sans MS',
-  },
-  completeContainer: {
+  progressRight: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 30,
+    gap: 8,
   },
-  completeText: {
-    color: '#10B981',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-    fontFamily: 'Comic Sans MS',
-  },
-  newStoryButton: {
-    backgroundColor: '#10B981',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginBottom: 15,
-  },
-  newStoryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Comic Sans MS',
+  progressNumbers: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
   },
   watchVideoButton: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    backgroundColor: '#8b5cf6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  watchVideoButtonText: {
-    color: '#1a1a2e',
+  watchVideoText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  progressBarBg: {
+    width: '100%',
+    height: 12,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  progressBarGradient: {
+    flex: 1,
+  },
+  illustrationContainer: {
+    marginBottom: 16,
+  },
+  illustrationPlaceholder: {
+    height: 192,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#8b5cf6',
+    borderStyle: 'dashed',
+  },
+  illustrationEmoji: {
+    fontSize: 64,
+    marginBottom: 12,
+  },
+  illustrationText: {
     fontSize: 18,
+    fontWeight: '600',
+    color: '#8b5cf6',
+  },
+  storyImage: {
+    height: 192,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#8b5cf6',
+  },
+  storyTextContainer: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  storyTextCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 24,
+    padding: 24,
+    minHeight: 120,
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#93c5fd',
+  },
+  storyText: {
+    fontSize: 20,
+    lineHeight: 30,
+    color: '#374151',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  nextButtonContainer: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
+  nextButton: {
+    borderRadius: 40,
+    overflow: 'hidden',
+  },
+  nextButtonGradient: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  nextButtonEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  choiceContainer: {
+    flex: 1,
+    padding: 24,
+  },
+  choiceHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  choiceTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    fontFamily: 'Comic Sans MS',
+    color: '#ea580c',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  choiceSubtitle: {
+    fontSize: 18,
+    color: '#fb923c',
+    textAlign: 'center',
+  },
+  choicesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  choiceButton: {
+    marginBottom: 16,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  choiceCard: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 24,
+    borderWidth: 4,
+    borderColor: '#fed7aa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  choiceNumberContainer: {
+    marginRight: 16,
+  },
+  choiceNumber: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  choiceNumberText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  choiceText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  completeContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  completeContent: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  completeEmoji: {
+    fontSize: 80,
+    marginBottom: 16,
+  },
+  completeTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ea580c',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  completeSubtitle: {
+    fontSize: 18,
+    color: '#fb923c',
+    textAlign: 'center',
+  },
+  completeButtonsContainer: {
+    width: '100%',
+    maxWidth: 320,
+  },
+  actionButton: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    minHeight: 70,
+  },
+  actionButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginLeft: 12,
   },
 });
-
-export default StoryScreen;
