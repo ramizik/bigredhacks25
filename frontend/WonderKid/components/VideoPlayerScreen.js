@@ -10,7 +10,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import Video from 'react-native-video';
+import { Video } from 'expo-av';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
@@ -114,17 +114,12 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     }
   };
 
-  const onVideoLoad = (data) => {
-    setDuration(data.duration);
-    console.log('✅ Video loaded, duration:', data.duration);
-  };
-
-  const onVideoProgress = (data) => {
-    setCurrentTime(data.currentTime);
-    if (duration > 0) {
-      setProgress((data.currentTime / duration) * 100);
-    }
-  };
+      const onVideoLoad = (status) => {
+        if (status.isLoaded) {
+            setDuration(status.durationMillis / 1000);
+            console.log('✅ Video loaded, duration:', status.durationMillis / 1000);
+        }
+    };
 
   const onVideoError = (error) => {
     console.error('❌ Video playback error:', error);
@@ -174,37 +169,45 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     </View>
   );
 
-  const renderVideoPlayer = () => (
-    <View style={styles.videoContainer}>
-      <Text style={styles.title}>🎬 Your Story Video</Text>
-      
-      <View style={styles.videoWrapper}>
-        <Video
-          ref={videoRef}
-          source={{ uri: videoUrl }}
-          style={styles.video}
-          paused={paused}
-          onLoad={onVideoLoad}
-          onProgress={onVideoProgress}
-          onError={onVideoError}
-          resizeMode="contain"
-          controls={false}
-          repeat={false}
-        />
-        
-        {/* Custom Controls Overlay */}
-        <TouchableOpacity 
-          style={styles.videoOverlay}
-          onPress={togglePlayPause}
-          activeOpacity={0.9}
-        >
-          {paused && (
-            <View style={styles.playButton}>
-              <Text style={styles.playButtonText}>▶</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+          const renderVideoPlayer = () => (
+            <View style={styles.videoContainer}>
+                <Text style={styles.title}>🎬 Your Story Video</Text>
+                
+                <View style={styles.videoWrapper}>
+                    <Video
+                        ref={videoRef}
+                        source={{ uri: videoUrl }}
+                        style={styles.video}
+                        shouldPlay={!paused}
+                        isLooping={false}
+                        onLoad={onVideoLoad}
+                        onPlaybackStatusUpdate={(status) => {
+                            if (status.isLoaded) {
+                                setDuration(status.durationMillis / 1000);
+                                setCurrentTime(status.positionMillis / 1000);
+                                if (status.durationMillis > 0) {
+                                    setProgress((status.positionMillis / status.durationMillis) * 100);
+                                }
+                            }
+                        }}
+                        onError={onVideoError}
+                        resizeMode="contain"
+                        useNativeControls={false}
+                    />
+                    
+                    {/* Custom Controls Overlay */}
+                    <TouchableOpacity 
+                        style={styles.videoOverlay}
+                        onPress={togglePlayPause}
+                        activeOpacity={0.9}
+                    >
+                        {paused && (
+                            <View style={styles.playButton}>
+                                <Text style={styles.playButtonText}>▶</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
       
       {/* Video Controls */}
       <View style={styles.controls}>
