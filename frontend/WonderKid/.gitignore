@@ -1,12 +1,7 @@
-CLAUDE.md
-.cursor/
-.vscode/
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # dependencies
 node_modules/
-
-# Config files
-package-lock.json
 
 # Expo
 .expo/
@@ -41,11 +36,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-app-example
-
 # generated native folders
 /ios
 /android
-.env
-
-dd/
