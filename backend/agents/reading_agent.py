@@ -52,15 +52,18 @@ class StoryState:
 story_state = StoryState()
 
 def initialize_genai_client():
-    """Initialize Google GenAI client"""
+    """Initialize Google GenAI client following dd project pattern"""
     if not AI_AVAILABLE:
         return None
     
     try:
-        # Initialize with API key from environment
-        genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+        # Use same pattern as dd project - create client directly
+        client = genai.Client(
+            api_key=os.getenv('GOOGLE_API_KEY'),
+            http_options={'api_version': 'v1alpha'}
+        )
         print("✅ GenAI client initialized successfully")
-        return True
+        return client
     except Exception as e:
         print(f"❌ GenAI client initialization failed: {e}")
         return None
@@ -73,7 +76,8 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
     
-    if not initialize_genai_client():
+    client = initialize_genai_client()
+    if not client:
         error_msg = "Failed to initialize Google GenAI client. Check GOOGLE_API_KEY environment variable."
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
@@ -81,7 +85,7 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
     try:
         print(f"📚 Generating kid story for theme: {theme}")
         
-        # Create age-appropriate prompt
+        # Create age-appropriate prompt following dd project pattern
         system_prompt = f"""
         You are a professional children's book author creating stories for ages {age_group}.
         
@@ -105,11 +109,11 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
         }}
         """
         
-        # Generate story using Gemini
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(
-            system_prompt,
-            generation_config=genai.types.GenerationConfig(
+        # Generate story using client - following dd project pattern
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=system_prompt,
+            config=types.GenerateContentConfig(
                 temperature=0.8,
                 max_output_tokens=1000,
                 response_mime_type="application/json"
@@ -154,7 +158,8 @@ def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
     
-    if not initialize_genai_client():
+    client = initialize_genai_client()
+    if not client:
         error_msg = "Failed to initialize Google GenAI client. Check GOOGLE_API_KEY environment variable."
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
@@ -191,10 +196,10 @@ def continue_story_with_choice(choice: str, choice_index: int) -> Dict:
         }}
         """
         
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(
-            system_prompt,
-            generation_config=genai.types.GenerationConfig(
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=system_prompt,
+            config=types.GenerateContentConfig(
                 temperature=0.8,
                 max_output_tokens=800,
                 response_mime_type="application/json"
@@ -243,7 +248,8 @@ def generate_illustration_prompt(paragraph_text: str, scene_number: int) -> str:
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
     
-    if not initialize_genai_client():
+    client = initialize_genai_client()
+    if not client:
         error_msg = "Failed to initialize Google GenAI client. Check GOOGLE_API_KEY environment variable."
         print(f"❌ {error_msg}")
         raise Exception(error_msg)
@@ -263,8 +269,10 @@ def generate_illustration_prompt(paragraph_text: str, scene_number: int) -> str:
         Return ONLY the illustration prompt text, no additional formatting.
         """
         
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(system_prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=system_prompt
+        )
         
         return response.text.strip()
         
