@@ -85,27 +85,13 @@ export default function StoryScreen() {
       pulseAnimation.start();
       fadeAnimation.start();
 
-      // Update loading messages
-      const messages = [
-        "Preparing your magical adventure...",
-        "Gathering story ingredients...",
-        "Crafting your personalized tale...",
-        "Painting beautiful illustrations...",
-        "Almost ready to begin...",
-        "Get ready to be immersed! 🌟"
-      ];
-
-      let messageIndex = 0;
-      const messageInterval = setInterval(() => {
-        setLoadingMessage(messages[messageIndex]);
-        messageIndex = (messageIndex + 1) % messages.length;
-      }, 1200);
+      // Set a single, static loading message
+      setLoadingMessage("Creating your magical story...");
 
       return () => {
         spinAnimation.stop();
         pulseAnimation.stop();
         fadeAnimation.stop();
-        clearInterval(messageInterval);
       };
     }
   }, [phase, spinValue, pulseValue, fadeValue]);
@@ -138,15 +124,6 @@ export default function StoryScreen() {
       console.log('📱 Full API Response:', JSON.stringify(result, null, 2));
       console.log('🖼️ Image URL:', result.image_url);
       console.log('🎨 Image Generated:', result.image_generated);
-      
-      // Show popup with AI generation status
-      Alert.alert(
-        '📚 Story Created!',
-        `${result.story_title}\n\n🤖 AI Generated!\nTheme: "${result.user_input}"\n${result.image_generated ? '🎨 With AI Illustration!' : '📝 Text Only'}`,
-        [
-          { text: 'Start Reading!', style: 'default' }
-        ]
-      );
       
       // Use real AI-generated story data
       const aiStory = {
@@ -390,7 +367,7 @@ export default function StoryScreen() {
                 colors={['#3b82f6', '#8b5cf6', '#ec4899']}
                 style={styles.loadingIcon}
               >
-                <Ionicons name="sparkles" size={48} color="white" />
+                <View style={styles.spinningLogo} />
               </LinearGradient>
             </Animated.View>
             
@@ -430,17 +407,10 @@ export default function StoryScreen() {
             </Animated.View>
           </View>
           
-          {/* Dynamic Loading Messages */}
-          <Animated.View style={{ opacity: fadeValue }}>
+          {/* Static Loading Messages */}
+          <View>
             <Text style={styles.loadingTitle}>Creating Your Story...</Text>
             <Text style={styles.loadingSubtitle}>{loadingMessage}</Text>
-          </Animated.View>
-          
-          {/* Progress Dots */}
-          <View style={styles.progressDots}>
-            <Animated.View style={[styles.dot, { opacity: fadeValue }]} />
-            <Animated.View style={[styles.dot, { opacity: fadeValue }]} />
-            <Animated.View style={[styles.dot, { opacity: fadeValue }]} />
           </View>
         </View>
         </LinearGradient>
@@ -760,6 +730,20 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 12,
   },
+  spinningLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: 'rgba(255, 255, 255, 0.5)',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   magicParticle1: {
     position: 'absolute',
     top: -20,
@@ -807,26 +791,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 32,
     lineHeight: 28,
-  },
-  progressDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#8b5cf6',
-    shadowColor: '#8b5cf6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
   },
   readingContainer: {
     flex: 1,

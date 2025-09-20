@@ -118,6 +118,17 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         - Bright, engaging colors that appeal to children
         - Clear, simple composition for easy understanding
         - Consistent with previous story illustrations if any
+        
+        IMPORTANT VISUAL REQUIREMENTS:
+        - NO TEXT OR WORDS on the image - this is a pure visual illustration
+        - NO speech bubbles, captions, or written content
+        - NO text overlays or labels
+        - Mobile-optimized: Large, clear details that are easily visible on small screens
+        - Bold, simple shapes and characters that are readable on mobile devices
+        - High contrast elements for better mobile visibility
+        - Avoid tiny details that would be hard to see on phone screens
+        - Focus on main characters and key visual elements
+        - Use simple, clean backgrounds that don't compete with main subjects
         """
         
         print(f"🎨 Enhanced prompt created for Imagen 3.0")
