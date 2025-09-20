@@ -8,7 +8,6 @@ import {
     Image,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -16,10 +15,12 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
 export default function StoryScreen() {
+  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState('input'); // 'input' | 'loading' | 'reading' | 'choosing' | 'complete'
   const [userInput, setUserInput] = useState('');
   const [storyData, setStoryData] = useState({
@@ -292,7 +293,12 @@ export default function StoryScreen() {
   // Input Phase
   if (phase === 'input') {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
         <KeyboardAvoidingView 
           style={styles.keyboardContainer} 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -358,7 +364,7 @@ export default function StoryScreen() {
           </ScrollView>
         </LinearGradient>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -370,7 +376,12 @@ export default function StoryScreen() {
     });
 
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
         <LinearGradient
           colors={['#dbeafe', '#f3e8ff', '#fce7f3']}
           style={styles.gradientContainer}
@@ -444,7 +455,7 @@ export default function StoryScreen() {
           </View>
         </View>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -454,7 +465,12 @@ export default function StoryScreen() {
     const progress = (storyData.iteration / storyData.maxIterations) * 100;
 
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
         <LinearGradient
           colors={['#e0f2fe', '#f0fdf4']}
           style={styles.gradientContainer}
@@ -534,14 +550,19 @@ export default function StoryScreen() {
           </View>
         </ScrollView>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Choice Phase
   if (phase === 'choosing') {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
         <LinearGradient
           colors={['#fef3c7', '#fee2e2']}
           style={styles.gradientContainer}
@@ -577,14 +598,19 @@ export default function StoryScreen() {
           </View>
         </ScrollView>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Complete Phase
   if (phase === 'complete') {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
         <LinearGradient
           colors={['#fef3c7', '#fed7aa']}
           style={styles.gradientContainer}
@@ -627,7 +653,7 @@ export default function StoryScreen() {
           </View>
         </View>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 

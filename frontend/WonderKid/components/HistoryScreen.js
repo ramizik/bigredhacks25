@@ -4,18 +4,19 @@ import React from 'react';
 import {
     Alert,
     Dimensions,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 60) / 2; // Two columns with margins
 
 export default function HistoryScreen() {
+  const insets = useSafeAreaInsets();
   const completedStories = [
     {
       id: 1,
@@ -96,7 +97,12 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, {
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+    }]}>
       <LinearGradient
         colors={['#fed7aa', '#fef3c7', '#fce7f3']}
         style={styles.gradientContainer}
@@ -185,7 +191,7 @@ export default function HistoryScreen() {
         </View>
       </ScrollView>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 

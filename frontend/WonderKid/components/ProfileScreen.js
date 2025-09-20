@@ -4,17 +4,18 @@ import React from 'react';
 import {
     Alert,
     Dimensions,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const profileData = {
     name: "Emma",
     avatar: "👧",
@@ -84,7 +85,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, {
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+    }]}>
       <LinearGradient
         colors={['#d1fae5', '#dbeafe', '#f3e8ff']}
         style={styles.gradientContainer}
@@ -240,7 +246,7 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 
