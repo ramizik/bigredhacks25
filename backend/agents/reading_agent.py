@@ -115,7 +115,12 @@ def clean_and_parse_json(response_text: str, fallback_data: dict) -> dict:
     
     # If all parsing attempts fail, return fallback data
     print(f"⚠️ All JSON parsing attempts failed. Using fallback data.")
-    print(f"🔍 Raw response (first 200 chars): {response_text[:200]}...")
+    print(f"🔍 FULL Raw response for debugging:")
+    print(f"📋 START_OF_RESPONSE")
+    print(response_text)
+    print(f"📋 END_OF_RESPONSE")
+    print(f"📊 Response length: {len(response_text)} characters")
+    print(f"🔤 Response type: {type(response_text)}")
     return fallback_data
 
 def initialize_genai_client():
