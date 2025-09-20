@@ -1,14 +1,14 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 
-import StoryScreen from './components/StoryScreen';
 import HistoryScreen from './components/HistoryScreen';
 import ProfileScreen from './components/ProfileScreen';
+import StoryScreen from './components/StoryScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -41,8 +41,8 @@ export default function App() {
               tabBarInactiveTintColor: '#8b5cf6',
               tabBarStyle: {
                 backgroundColor: '#ffffff',
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
                 height: 90,
                 paddingTop: 10,
                 paddingBottom: 30,
@@ -62,9 +62,7 @@ export default function App() {
                 marginVertical: 4,
               },
               tabBarLabelStyle: {
-                fontSize: 12,
-                fontWeight: '600',
-                marginTop: 4,
+                display: 'none',
               },
               tabBarActiveBackgroundColor: '#8b5cf6',
             })}
@@ -72,23 +70,14 @@ export default function App() {
             <Tab.Screen 
               name="Story" 
               component={StoryScreen}
-              options={{
-                tabBarLabel: 'Story',
-              }}
             />
             <Tab.Screen 
               name="History" 
               component={HistoryScreen}
-              options={{
-                tabBarLabel: 'History',
-              }}
             />
             <Tab.Screen 
               name="Profile" 
               component={ProfileScreen}
-              options={{
-                tabBarLabel: 'Profile',
-              }}
             />
           </Tab.Navigator>
         </NavigationContainer>
