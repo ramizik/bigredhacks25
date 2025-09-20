@@ -120,6 +120,33 @@ async def health_check():
         "version": "1.0.0"
     }
 
+# Test image endpoint for debugging
+@app.get("/api/test-image")
+async def test_image():
+    """Test endpoint to verify image serving works"""
+    logger.info("🧪 Testing image serving capability")
+    
+    # Check if any images exist
+    import glob
+    image_files = glob.glob("wonderkid_*.png")
+    
+    if image_files:
+        latest_image = max(image_files, key=os.path.getctime)
+        return {
+            "status": "success",
+            "message": "Image serving test",
+            "available_images": image_files,
+            "latest_image": latest_image,
+            "test_url": f"/api/images/{latest_image}",
+            "full_url": f"https://bigredhacks25-331813490179.us-east4.run.app/api/images/{latest_image}"
+        }
+    else:
+        return {
+            "status": "no_images",
+            "message": "No images found for testing",
+            "available_images": []
+        }
+
 # Generate new story based on theme using AI
 @app.post("/api/generate-story", response_model=StoryResponse)
 async def generate_story(request: StoryThemeRequest):
@@ -465,7 +492,7 @@ async def get_user_stories(user_id: str):
         logger.error(f"❌ Story history retrieval failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Story history retrieval failed: {str(e)}")
 
-# Serve generated images
+# Serve generated images with proper CORS headers for Expo Go
 @app.get("/api/images/{filename}")
 async def get_generated_image(filename: str):
     logger.info(f"🖼️ Serving generated image: {filename}")
@@ -474,7 +501,17 @@ async def get_generated_image(filename: str):
         # Check if file exists in current directory (where images are saved)
         file_path = Path(filename)
         if file_path.exists() and file_path.is_file():
-            return FileResponse(str(file_path))
+            # Return FileResponse with proper headers for mobile apps
+            return FileResponse(
+                str(file_path),
+                media_type="image/png",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                    "Cache-Control": "public, max-age=3600"
+                }
+            )
         else:
             logger.error(f"❌ Image file not found: {filename}")
             raise HTTPException(status_code=404, detail=f"Image not found: {filename}")

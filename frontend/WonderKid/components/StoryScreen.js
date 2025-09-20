@@ -2,16 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Dimensions,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -25,6 +26,8 @@ export default function StoryScreen() {
     iteration: 1,
     maxIterations: 10,
     choices: null,
+    imageUrl: null,
+    imageGenerated: false,
   });
 
   // Call backend API to create story
@@ -51,10 +54,15 @@ export default function StoryScreen() {
 
       const result = await response.json();
       
+      // Debug: Log the full response to see image data
+      console.log('📱 Full API Response:', JSON.stringify(result, null, 2));
+      console.log('🖼️ Image URL:', result.image_url);
+      console.log('🎨 Image Generated:', result.image_generated);
+      
       // Show popup with AI generation status
       Alert.alert(
         '📚 Story Created!',
-        `${result.story_title}\n\n🤖 AI Generated!\nTheme: "${result.user_input}"`,
+        `${result.story_title}\n\n🤖 AI Generated!\nTheme: "${result.user_input}"\n${result.image_generated ? '🎨 With AI Illustration!' : '📝 Text Only'}`,
         [
           { text: 'Start Reading!', style: 'default' }
         ]
@@ -70,7 +78,9 @@ export default function StoryScreen() {
         storyTitle: result.story_title,
         mood: result.mood,
         educationalTheme: result.educational_theme,
-        illustrationPrompts: result.illustration_prompts || []
+        illustrationPrompts: result.illustration_prompts || [],
+        imageUrl: result.image_url || null,
+        imageGenerated: result.image_generated || false
       };
       
       setStoryData(aiStory);
@@ -282,15 +292,33 @@ export default function StoryScreen() {
             </View>
           </View>
 
-          {/* Illustration Placeholder */}
+          {/* Story Illustration */}
           <View style={styles.illustrationContainer}>
-            <LinearGradient
-              colors={['#fef3c7', '#fce7f3', '#e0e7ff']}
-              style={styles.illustrationPlaceholder}
-            >
-              <Text style={styles.illustrationEmoji}>🌟</Text>
-              <Text style={styles.illustrationText}>Story Scene {storyData.currentParagraph + 1}</Text>
-            </LinearGradient>
+            {storyData.imageGenerated && storyData.imageUrl ? (
+              <Image
+                source={{ uri: `https://bigredhacks25-331813490179.us-east4.run.app${storyData.imageUrl}` }}
+                style={styles.storyImage}
+                resizeMode="cover"
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully:', storyData.imageUrl);
+                }}
+                onError={(error) => {
+                  console.log('❌ Image load error:', error);
+                  console.log('🔗 Attempted URL:', `https://bigredhacks25-331813490179.us-east4.run.app${storyData.imageUrl}`);
+                  // Fallback to placeholder if image fails to load
+                }}
+              />
+            ) : (
+              <LinearGradient
+                colors={['#fef3c7', '#fce7f3', '#e0e7ff']}
+                style={styles.illustrationPlaceholder}
+              >
+                <Text style={styles.illustrationEmoji}>🌟</Text>
+                <Text style={styles.illustrationText}>
+                  {storyData.imageGenerated ? 'Loading Image...' : `Story Scene ${storyData.currentParagraph + 1}`}
+                </Text>
+              </LinearGradient>
+            )}
           </View>
 
           {/* Text Area */}
@@ -604,6 +632,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#8b5cf6',
+  },
+  storyImage: {
+    height: 192,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#8b5cf6',
   },
   storyTextContainer: {
     flex: 1,
