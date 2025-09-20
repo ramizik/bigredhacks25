@@ -119,11 +119,19 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         - Clear, simple composition for easy understanding
         - Consistent with previous story illustrations if any
         
-        IMPORTANT VISUAL REQUIREMENTS:
-        - NO TEXT OR WORDS on the image - this is a pure visual illustration
-        - NO speech bubbles, captions, or written content
-        - NO text overlays or labels
-        - Mobile-optimized: Large, clear details that are easily visible on small screens
+        CRITICAL VISUAL REQUIREMENTS - NO TEXT ALLOWED:
+        - ABSOLUTELY NO TEXT, WORDS, OR LETTERS anywhere on the image
+        - NO speech bubbles, thought bubbles, or dialogue boxes
+        - NO captions, subtitles, or written descriptions
+        - NO text overlays, labels, or annotations
+        - NO signs, banners, or written messages
+        - NO book titles, story titles, or written content
+        - NO numbers, symbols, or written characters
+        - This must be a PURE VISUAL ILLUSTRATION with ZERO text elements
+        - If the story mentions text, represent it visually without showing actual words
+        
+        MOBILE-OPTIMIZED DESIGN:
+        - Large, clear details that are easily visible on small screens
         - Bold, simple shapes and characters that are readable on mobile devices
         - High contrast elements for better mobile visibility
         - Avoid tiny details that would be hard to see on phone screens
