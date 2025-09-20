@@ -147,39 +147,25 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         
         print(f"🎨 Enhanced prompt created for Imagen 3.0")
         
-        # Try the correct API method - it's generate_image (singular) not generate_images (plural)
+        # Use the correct API method - logs show generate_images (plural) IS available
         try:
-            # Check for available methods
-            if hasattr(client.models, 'generate_image'):
-                print("✅ Using generate_image method (singular)")
-                # Generate image using Imagen 3.0 with correct method name
-                response = client.models.generate_image(
-                    model="imagen-3.0-generate-002",
-                    prompt=enhanced_prompt,
-                    config=types.GenerateImagesConfig(
-                        number_of_images=1,
-                        aspect_ratio="16:9",
-                        safety_filter_level="block_low_and_above"
-                    )
-                )
-            else:
-                # List available methods for debugging
-                print("🔍 Checking available methods on client.models...")
-                available_methods = [m for m in dir(client.models) if not m.startswith('_')]
-                print(f"📋 Available methods: {available_methods}")
-                
-                # Try with different config structure
-                print("🔄 Trying alternative API structure...")
-                response = client.models.generate_image(
-                    model="imagen-3.0-generate-002",
-                    prompt=enhanced_prompt,
+            print("✅ Using generate_images method (plural) - confirmed available in logs")
+            # Generate image using Imagen 3.0 - following dd project pattern exactly
+            response = client.models.generate_images(
+                model="imagen-3.0-generate-002",
+                prompt=enhanced_prompt,
+                config=types.GenerateImagesConfig(
                     number_of_images=1,
                     aspect_ratio="16:9",
                     safety_filter_level="block_low_and_above"
                 )
+            )
         except AttributeError as e:
             print(f"❌ Method not found: {e}")
-            print("🔄 Falling back to placeholder image generation")
+            # List available methods for debugging
+            print("🔍 Checking available methods on client.models...")
+            available_methods = [m for m in dir(client.models) if not m.startswith('_')]
+            print(f"📋 Available methods: {available_methods}")
             
             # Return success but without actual image for now
             return {
