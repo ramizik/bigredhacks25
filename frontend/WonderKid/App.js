@@ -4,8 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, StyleSheet } from 'react-native';
 
 import HistoryScreen from './components/HistoryScreen';
 import ProfileScreen from './components/ProfileScreen';
@@ -13,16 +12,9 @@ import StoryScreen from './components/StoryScreen';
 
 const Tab = createBottomTabNavigator();
 
-function AppContent() {
-  const insets = useSafeAreaInsets();
-  
+export default function App() {
   return (
-    <View style={[styles.container, {
-      paddingTop: insets.top,
-      paddingBottom: insets.bottom,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-    }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" backgroundColor="#f0f9ff" translucent={false} />
       <LinearGradient
         colors={['#fef3c7', '#fdf2f8', '#dbeafe']}
@@ -90,15 +82,7 @@ function AppContent() {
           </Tab.Navigator>
         </NavigationContainer>
       </LinearGradient>
-    </View>
-  );
-}
-
-export default function App() {
-  return (
-    <SafeAreaProvider>
-      <AppContent />
-    </SafeAreaProvider>
+    </SafeAreaView>
   );
 }
 
