@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
+    Animated,
     Dimensions,
     Image,
     KeyboardAvoidingView,
@@ -30,6 +31,84 @@ export default function StoryScreen() {
     imageUrl: null,
     imageGenerated: false,
   });
+
+  // Animation refs for loading screen
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const pulseValue = useRef(new Animated.Value(1)).current;
+  const fadeValue = useRef(new Animated.Value(0)).current;
+  const [loadingMessage, setLoadingMessage] = useState("Preparing your magical adventure...");
+
+  // Animation effects for loading screen
+  useEffect(() => {
+    if (phase === 'loading') {
+      // Start animations
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      );
+      
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseValue, {
+            toValue: 1.2,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseValue, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      
+      const fadeAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(fadeValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeValue, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+      // Start all animations
+      spinAnimation.start();
+      pulseAnimation.start();
+      fadeAnimation.start();
+
+      // Update loading messages
+      const messages = [
+        "Preparing your magical adventure...",
+        "Gathering story ingredients...",
+        "Crafting your personalized tale...",
+        "Painting beautiful illustrations...",
+        "Almost ready to begin...",
+        "Get ready to be immersed! 🌟"
+      ];
+
+      let messageIndex = 0;
+      const messageInterval = setInterval(() => {
+        setLoadingMessage(messages[messageIndex]);
+        messageIndex = (messageIndex + 1) % messages.length;
+      }, 1200);
+
+      return () => {
+        spinAnimation.stop();
+        pulseAnimation.stop();
+        fadeAnimation.stop();
+        clearInterval(messageInterval);
+      };
+    }
+  }, [phase, spinValue, pulseValue, fadeValue]);
 
   // Call backend API to create story
   const generateStory = async (theme) => {
@@ -285,23 +364,84 @@ export default function StoryScreen() {
 
   // Loading Phase
   if (phase === 'loading') {
+    const spin = spinValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#dbeafe', '#f3e8ff']}
+          colors={['#dbeafe', '#f3e8ff', '#fce7f3']}
           style={styles.gradientContainer}
         >
         <View style={styles.loadingContainer}>
+          {/* Animated Magic Circle */}
           <View style={styles.loadingIconContainer}>
-            <LinearGradient
-              colors={['#3b82f6', '#8b5cf6']}
-              style={styles.loadingIcon}
+            <Animated.View
+              style={[
+                styles.magicCircle,
+                {
+                  transform: [{ rotate: spin }, { scale: pulseValue }],
+                },
+              ]}
             >
-              <Ionicons name="sparkles" size={48} color="white" />
-            </LinearGradient>
+              <LinearGradient
+                colors={['#3b82f6', '#8b5cf6', '#ec4899']}
+                style={styles.loadingIcon}
+              >
+                <Ionicons name="sparkles" size={48} color="white" />
+              </LinearGradient>
+            </Animated.View>
+            
+            {/* Floating Magic Particles */}
+            <Animated.View
+              style={[
+                styles.magicParticle1,
+                {
+                  opacity: fadeValue,
+                  transform: [{ scale: pulseValue }],
+                },
+              ]}
+            >
+              <Text style={styles.particleEmoji}>✨</Text>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.magicParticle2,
+                {
+                  opacity: fadeValue,
+                  transform: [{ scale: pulseValue }],
+                },
+              ]}
+            >
+              <Text style={styles.particleEmoji}>🌟</Text>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.magicParticle3,
+                {
+                  opacity: fadeValue,
+                  transform: [{ scale: pulseValue }],
+                },
+              ]}
+            >
+              <Text style={styles.particleEmoji}>💫</Text>
+            </Animated.View>
           </View>
-          <Text style={styles.loadingTitle}>Creating Your Story...</Text>
-          <Text style={styles.loadingSubtitle}>The magic is happening! ✨</Text>
+          
+          {/* Dynamic Loading Messages */}
+          <Animated.View style={{ opacity: fadeValue }}>
+            <Text style={styles.loadingTitle}>Creating Your Story...</Text>
+            <Text style={styles.loadingSubtitle}>{loadingMessage}</Text>
+          </Animated.View>
+          
+          {/* Progress Dots */}
+          <View style={styles.progressDots}>
+            <Animated.View style={[styles.dot, { opacity: fadeValue }]} />
+            <Animated.View style={[styles.dot, { opacity: fadeValue }]} />
+            <Animated.View style={[styles.dot, { opacity: fadeValue }]} />
+          </View>
         </View>
         </LinearGradient>
       </SafeAreaView>
@@ -592,34 +732,101 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 40,
   },
   loadingIconContainer: {
-    marginBottom: 24,
+    marginBottom: 40,
+    position: 'relative',
   },
-  loadingIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  magicCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  },
+  loadingIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  magicParticle1: {
+    position: 'absolute',
+    top: -20,
+    right: -10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  magicParticle2: {
+    position: 'absolute',
+    bottom: -15,
+    left: -15,
+    width: 35,
+    height: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  magicParticle3: {
+    position: 'absolute',
+    top: 20,
+    left: -25,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  particleEmoji: {
+    fontSize: 24,
   },
   loadingTitle: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#7c3aed',
-    marginBottom: 12,
+    color: '#1e40af',
     textAlign: 'center',
+    marginBottom: 16,
+    textShadowColor: 'rgba(59, 130, 246, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   loadingSubtitle: {
-    fontSize: 18,
-    color: '#8b5cf6',
+    fontSize: 20,
+    color: '#6366f1',
     textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 32,
+    lineHeight: 28,
+  },
+  progressDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#8b5cf6',
+    shadowColor: '#8b5cf6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
   },
   readingContainer: {
     flex: 1,
