@@ -169,6 +169,27 @@ async def generate_story(request: StoryThemeRequest):
         logger.error(f"❌ Story generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
 
+# Simple story request endpoint for testing
+@app.post("/api/create-story")
+async def create_story(request: StoryThemeRequest):
+    logger.info(f"📝 Received story request: {request.theme}")
+    
+    try:
+        # Echo back the user's input to confirm it was received
+        response = {
+            "message": "Story request received successfully!",
+            "user_input": request.theme,
+            "timestamp": datetime.now().isoformat(),
+            "status": "success"
+        }
+        
+        logger.info(f"✅ Story request processed: {request.theme}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Story request failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Story request failed: {str(e)}")
+
 # Continue story with user choice
 @app.post("/api/continue-story", response_model=StoryResponse)
 async def continue_story(request: StoryChoiceRequest):

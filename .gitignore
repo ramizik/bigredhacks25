@@ -49,3 +49,6 @@ app-example
 .env
 
 dd/
+
+# Google Cloud
+.dockerignore

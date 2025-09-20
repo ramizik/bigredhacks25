@@ -1,18 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+    Alert,
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,31 +27,70 @@ export default function StoryScreen() {
     choices: null,
   });
 
-  // Mock story generation - in real app this would call GPT API
+  // Call backend API to create story
   const generateStory = async (theme) => {
     setPhase('loading');
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const mockStory = {
-      paragraphs: [
-        `Once upon a time, ${theme} began an amazing adventure. The sun was shining brightly as our hero discovered something magical hidden in the forest.`,
-        `As they explored deeper into the enchanted woods, mysterious sounds echoed through the trees. What could be making those strange noises?`,
-        `Suddenly, a friendly creature appeared! It had sparkling wings and a warm smile. "I can help you," it said gently.`
-      ],
-      currentParagraph: 0,
-      choices: [
-        "Follow the creature to its magical home",
-        "Ask the creature about the mysterious sounds", 
-        "Invite the creature to join your adventure"
-      ],
-      iteration: 1,
-      maxIterations: 10
-    };
-    
-    setStoryData(mockStory);
-    setPhase('reading');
+    try {
+      // Call backend API
+      const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/create-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          theme: theme,
+          age_group: "5-8",
+          reading_level: "beginner"
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Show popup with user's input from backend
+      Alert.alert(
+        '📚 Story Request Received!',
+        `Your story idea: "${result.user_input}"\n\nStatus: ${result.status}\nTime: ${new Date(result.timestamp).toLocaleTimeString()}`,
+        [
+          { text: 'Great!', style: 'default' }
+        ]
+      );
+      
+      // For now, continue with mock story after API call
+      const mockStory = {
+        paragraphs: [
+          `Once upon a time, ${theme} began an amazing adventure. The sun was shining brightly as our hero discovered something magical hidden in the forest.`,
+          `As they explored deeper into the enchanted woods, mysterious sounds echoed through the trees. What could be making those strange noises?`,
+          `Suddenly, a friendly creature appeared! It had sparkling wings and a warm smile. "I can help you," it said gently.`
+        ],
+        currentParagraph: 0,
+        choices: [
+          "Follow the creature to its magical home",
+          "Ask the creature about the mysterious sounds", 
+          "Invite the creature to join your adventure"
+        ],
+        iteration: 1,
+        maxIterations: 10
+      };
+      
+      setStoryData(mockStory);
+      setPhase('reading');
+      
+    } catch (error) {
+      console.error('Error calling backend:', error);
+      Alert.alert(
+        '❌ Connection Error',
+        'Could not connect to the story server. Please check your internet connection and try again.',
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
+      setPhase('input');
+    }
   };
 
   const handleNext = () => {
@@ -156,27 +195,20 @@ export default function StoryScreen() {
             {/* Start Button */}
             <TouchableOpacity
               onPress={() => generateStory(userInput)}
-              disabled={userInput.trim().length < 10}
-              style={[
-                styles.startButton,
-                userInput.trim().length < 10 && styles.startButtonDisabled
-              ]}
+              style={styles.startButton}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={userInput.trim().length < 10 ? ['#d1d5db', '#d1d5db'] : ['#8b5cf6', '#ec4899']}
+                colors={['#8b5cf6', '#ec4899']}
                 style={styles.startButtonGradient}
               >
-                <Text style={[
-                  styles.startButtonText,
-                  userInput.trim().length < 10 && styles.startButtonTextDisabled
-                ]}>
+                <Text style={styles.startButtonText}>
                   Start My Story
                 </Text>
                 <Ionicons 
                   name="arrow-forward" 
                   size={24} 
-                  color={userInput.trim().length < 10 ? '#9ca3af' : 'white'} 
+                  color="white" 
                 />
               </LinearGradient>
             </TouchableOpacity>
@@ -448,9 +480,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
-  startButtonDisabled: {
-    opacity: 0.6,
-  },
   startButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -464,9 +493,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
     marginRight: 12,
-  },
-  startButtonTextDisabled: {
-    color: '#9ca3af',
   },
   loadingContainer: {
     flex: 1,
