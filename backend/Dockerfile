@@ -35,8 +35,13 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
+COPY requirements_minimal.txt .
+
+# Try main requirements first, fallback to minimal if conflicts
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    (pip install --no-cache-dir -r requirements.txt || \
+     echo "⚠️ Main requirements failed, trying minimal..." && \
+     pip install --no-cache-dir -r requirements_minimal.txt)
 
 # Copy application code
 COPY . .
