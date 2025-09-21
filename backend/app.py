@@ -6,6 +6,7 @@ from pathlib import Path
 import logging
 import os
 import sys
+import glob
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import asyncio
@@ -737,9 +738,13 @@ async def get_video_status(story_id: str):
     logger.info(f"📊 Checking video status for story {story_id}")
     
     try:
+        # Enhanced logging for debugging
+        logger.info(f"📊 Active video generation tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
+        
         # Check if video generation task exists
         if story_id in VIDEO_GENERATION_TASKS:
             task_status = VIDEO_GENERATION_TASKS[story_id]
+            logger.info(f"📊 Found task status for {story_id}: {task_status}")
             
             if task_status.get("status") == "processing":
                 return VideoStatusResponse(
@@ -751,6 +756,7 @@ async def get_video_status(story_id: str):
                 )
             elif task_status.get("status") == "success":
                 video_file = task_status.get("generated_file")
+                logger.info(f"✅ Video file found in task: {video_file}")
                 return VideoStatusResponse(
                     status="completed",
                     generation_in_progress=False,
@@ -759,6 +765,7 @@ async def get_video_status(story_id: str):
                     message="✅ Video generation completed!"
                 )
             else:
+                logger.warning(f"⚠️ Task status not success: {task_status}")
                 return VideoStatusResponse(
                     status="error",
                     generation_in_progress=False,
@@ -767,8 +774,39 @@ async def get_video_status(story_id: str):
                     message=f"❌ Video generation failed: {task_status.get('error', 'Unknown error')}"
                 )
         
+        logger.info(f"📊 No task found for {story_id}, checking filesystem and story status...")
+        
+        # Fallback: Check filesystem for video files matching story pattern
+        import glob
+        video_patterns = [
+            f"wonderkid*{story_id}*.mp4",
+            f"wonderkid*video*.mp4",  # Broader pattern
+            "wonderkid*.mp4"  # Even broader for recent files
+        ]
+        
+        found_videos = []
+        for pattern in video_patterns:
+            matching_files = glob.glob(pattern)
+            found_videos.extend(matching_files)
+            logger.info(f"🔍 Pattern '{pattern}' found: {matching_files}")
+        
+        if found_videos:
+            # Use the most recent video file
+            latest_video = max(found_videos, key=os.path.getmtime)
+            video_filename = os.path.basename(latest_video)
+            logger.info(f"✅ Found video file on filesystem: {video_filename}")
+            
+            return VideoStatusResponse(
+                status="completed",
+                generation_in_progress=False,
+                video_url=f"/api/videos/{video_filename}",
+                scenes_included=10,
+                message="✅ Video found and ready to play!"
+            )
+        
         # Check if story has a generated video
         status = get_story_status()
+        logger.info(f"📊 Story status: {status}")
         if status.get("generated_video"):
             return VideoStatusResponse(
                 status="completed",
@@ -778,6 +816,7 @@ async def get_video_status(story_id: str):
                 message="✅ Video available!"
             )
         
+        logger.info(f"📊 No video found for story {story_id}")
         return VideoStatusResponse(
             status="not_started",
             generation_in_progress=False,
@@ -818,6 +857,42 @@ async def get_generated_video(filename: str):
     except Exception as e:
         logger.error(f"❌ Video serving failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Video serving failed: {str(e)}")
+
+# Debug endpoint to list all video files
+@app.get("/api/debug/videos")
+async def debug_list_videos():
+    """Debug endpoint to list all available video files"""
+    logger.info("🔍 Debug: Listing all video files")
+    
+    try:
+        # Find all video files
+        video_files = glob.glob("*.mp4")
+        video_info = []
+        
+        for video_file in video_files:
+            file_path = Path(video_file)
+            if file_path.exists():
+                file_stats = file_path.stat()
+                video_info.append({
+                    "filename": video_file,
+                    "size_bytes": file_stats.st_size,
+                    "size_mb": round(file_stats.st_size / (1024 * 1024), 2),
+                    "created": datetime.fromtimestamp(file_stats.st_ctime).isoformat(),
+                    "modified": datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
+                    "url": f"/api/videos/{video_file}"
+                })
+        
+        return {
+            "total_videos": len(video_files),
+            "videos": video_info,
+            "current_directory": str(Path.cwd()),
+            "video_tasks": {k: v for k, v in VIDEO_GENERATION_TASKS.items()},
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Debug video listing failed: {str(e)}")
+        return {"error": str(e), "videos": []}
 
 # Get overall video system status
 @app.get("/api/video-system-status")
