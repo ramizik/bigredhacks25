@@ -142,15 +142,21 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
       setVideoStatus(data.status);
       
       if (data.status === 'completed' && (data.video_url || data.gcs_url)) {
-        console.log('✅ Video completed, URL:', data.video_url);
-        if (data.gcs_url) {
-          console.log('☁️ GCS URL available:', data.gcs_url);
-        }
+        console.log('✅ Video completed!');
+        console.log('📁 Local URL:', data.video_url || 'None');
+        console.log('☁️ GCS URL:', data.gcs_url || 'None');
         
-        // Try to load video data (base64 or URL)
-        // Pass GCS URL as fallback option
-        await loadVideoData(data.video_url, data.gcs_url);
-        setLoading(false);
+        // Prefer GCS URL if available for better reliability
+        if (data.gcs_url) {
+          console.log('🎯 Using GCS URL directly for video playback');
+          setVideoUrl(data.gcs_url);
+          setLoading(false);
+        } else if (data.video_url) {
+          console.log('🎯 Loading video from API endpoint');
+          // Try to load video data (base64 or URL)
+          await loadVideoData(data.video_url, data.gcs_url);
+          setLoading(false);
+        }
         if (checkInterval.current) {
           clearInterval(checkInterval.current);
         }
