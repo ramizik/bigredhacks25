@@ -532,6 +532,18 @@ def generate_story_video_async() -> Dict:
             age_group=story_state.age_group
         )
         
+        # UNPACK the nested dictionary to fix the bug
+        if video_result.get("status") == "success" and isinstance(video_result.get("generated_file"), dict):
+            logger.info("📦 Unpacking nested video result...")
+            unpacked_result = video_result["generated_file"]
+            
+            # Carry over top-level metadata
+            for key, value in video_result.items():
+                if key not in unpacked_result:
+                    unpacked_result[key] = value
+            
+            video_result = unpacked_result
+        
         if video_result.get("status") == "success":
             story_state.generated_video = video_result.get("generated_file")
             logger.info(f"✅ Story video generated successfully: {story_state.generated_video}")

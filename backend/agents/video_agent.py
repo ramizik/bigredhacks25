@@ -462,23 +462,22 @@ colorful children's storybook animation with maximum wonder and joy"""
         logger.info(f"🚀 Calling generate_direct_story_video instead...")
         
         # Use direct video generation (no image) for testing
-        generated_file = generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
+        direct_generation_result = generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
         
-        if generated_file:
+        if direct_generation_result.get("status") == "success":
             # Update metadata
             video_state.story_videos_metadata[story_id].update({
-                "generated_file": generated_file,
+                "generated_file": direct_generation_result.get("generated_file"),
                 "generation_completed": datetime.now().isoformat(),
                 "status": "success"
             })
             
-            logger.info(f"✅ Comprehensive story video generated: {generated_file}")
+            logger.info(f"✅ Comprehensive story video generated: {direct_generation_result.get('generated_file')}")
             logger.info(f"📈 Video generation stats: {video_state.total_videos_generated} total videos")
             
-            return {
+            # Combine results into a single flat dictionary
+            final_result = {
                 "status": "success",
-                "generated_file": generated_file,
-                "story_id": story_id,
                 "story_theme": story_theme,
                 "theme_category": story_themes["theme_category"],
                 "mood": story_themes["mood"],
@@ -490,6 +489,8 @@ colorful children's storybook animation with maximum wonder and joy"""
                 "approach": "DD_safe_cinematic",
                 "message": f"🎬 Your {story_themes['theme_category']} story video is ready! A magical {story_themes['mood']} journey!"
             }
+            final_result.update(direct_generation_result)
+            return final_result
         else:
             logger.error(f"❌ Video generation failed for story {story_id}")
             logger.error(f"📊 Seed image used: {seed_image}")

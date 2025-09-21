@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Animated,
     Dimensions,
@@ -37,6 +38,7 @@ export default function StoryScreen() {
   // Video generation states
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoTriggered, setVideoTriggered] = useState(false);
+  const [isCheckingVideoStatus, setIsCheckingVideoStatus] = useState(false);
 
   // Animation refs for loading screen
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -240,7 +242,7 @@ export default function StoryScreen() {
           [
             {
               text: 'Watch Video',
-              onPress: () => setShowVideoPlayer(true)
+              onPress: () => checkAndShowVideo()
             },
             {
               text: 'Continue Reading',
@@ -289,6 +291,37 @@ export default function StoryScreen() {
 
   const generateVideo = () => {
     setShowVideoPlayer(true);
+  };
+
+  const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
+
+  const checkAndShowVideo = async () => {
+    if (isCheckingVideoStatus) return;
+
+    setIsCheckingVideoStatus(true);
+    try {
+      const storyId = storyData.storyId || 'current_story';
+      const response = await fetch(`${API_URL}/api/video-status/${storyId}`);
+      const data = await response.json();
+
+      if (data.status === 'completed' && data.video_url) {
+        setShowVideoPlayer(true);
+      } else if (data.status === 'processing' || data.status === 'started') {
+        Alert.alert(
+          "⏳ Still Brewing!",
+          "Your magical video is still being created. It usually takes 2-3 minutes. Please try again in a moment!",
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Not started or error, let the VideoPlayerScreen handle triggering it
+        setShowVideoPlayer(true);
+      }
+    } catch (error) {
+      console.error("Error checking video status:", error);
+      Alert.alert("Error", "Could not check the video status. Please try again later.");
+    } finally {
+      setIsCheckingVideoStatus(false);
+    }
   };
 
   // Input Phase
@@ -464,10 +497,14 @@ export default function StoryScreen() {
                   <Text style={styles.progressNumbers}>{storyData.iteration}/{storyData.maxIterations}</Text>
                   {videoTriggered && (
                     <TouchableOpacity 
-                      onPress={() => setShowVideoPlayer(true)}
+                      onPress={checkAndShowVideo}
+                      disabled={isCheckingVideoStatus}
                       style={styles.watchVideoButton}
                     >
-                      <Text style={styles.watchVideoText}>🎬 Watch Video</Text>
+                      {isCheckingVideoStatus 
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={styles.watchVideoText}>🎬 Watch Video</Text>
+                      }
                     </TouchableOpacity>
                   )}
                 </View>
@@ -603,7 +640,8 @@ export default function StoryScreen() {
 
           <View style={styles.completeButtonsContainer}>
             <TouchableOpacity
-              onPress={generateVideo}
+              onPress={checkAndShowVideo}
+              disabled={isCheckingVideoStatus}
               style={styles.actionButton}
               activeOpacity={0.8}
             >
@@ -611,8 +649,14 @@ export default function StoryScreen() {
                 colors={['#dc2626', '#ec4899']}
                 style={styles.actionButtonGradient}
               >
-                <Ionicons name="play" size={24} color="white" />
-                <Text style={styles.actionButtonText}>Create Story Video</Text>
+                {isCheckingVideoStatus ? (
+                  <ActivityIndicator size="large" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="play" size={24} color="white" />
+                    <Text style={styles.actionButtonText}>Create Story Video</Text>
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
