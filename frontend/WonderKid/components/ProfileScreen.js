@@ -137,6 +137,10 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Built with ❤️ for BRH</Text>
+        </View>
 
       </ScrollView>
       </LinearGradient>
@@ -311,5 +315,15 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 6,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingBottom: 32,
+  },
+  footerText: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
 });
