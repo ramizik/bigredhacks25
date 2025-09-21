@@ -723,11 +723,16 @@ async def continue_story(request: StoryChoiceRequest):
         is_complete = continuation_data.get("story_complete", False)
         
         # Check for video trigger at 10 iterations
+        logger.info(f"🔧 DEBUG: story_progress = {story_progress}")
         video_trigger_info = story_progress.get("video_trigger")
+        logger.info(f"🔧 DEBUG: video_trigger_info = {video_trigger_info}")
+
         if video_trigger_info:
             logger.info(f"🎬 Video generation triggered for story {story_state.story_id}")
             # Trigger background video generation
             trigger_background_video_generation(story_state.story_id)
+        else:
+            logger.info(f"🔧 DEBUG: No video trigger found in story_progress")
         
         logger.info(f"✅ Story continued successfully. Progress: {progress_percentage}%")
 
@@ -886,6 +891,8 @@ async def get_video_status(story_id: str):
     logger.info(f"📊 Current time: {datetime.now().isoformat()}")
 
     try:
+        logger.info(f"📊 Starting video status check for: {story_id}")
+
         # Handle current_story as special case for empty/unspecified story ID
         if story_id == "current_story" or story_id == "" or story_id == "undefined":
             logger.info(f"🔍 Handling special case story_id: '{story_id}'")
