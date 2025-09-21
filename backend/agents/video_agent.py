@@ -148,6 +148,14 @@ professional animation quality with heartwarming atmosphere"""
         logger.info(f"📝 Video prompt length: {len(enhanced_prompt)} characters")
         logger.info(f"🎯 Video prompt preview: {enhanced_prompt[:200]}...")
         
+        # DETAILED LOGGING: Log the exact prompt being sent to Veo (with image)
+        logger.info(f"🔍 FULL PROMPT BEING SENT TO VEO API (WITH IMAGE):")
+        logger.info(f"🔍 ========================================")
+        logger.info(f"🔍 {enhanced_prompt}")
+        logger.info(f"🔍 ========================================")
+        logger.info(f"🔍 Prompt length: {len(enhanced_prompt)} characters")
+        logger.info(f"🔍 Prompt words: {len(enhanced_prompt.split())} words")
+        
         # Read and validate image
         logger.info(f"📖 Reading seed image file...")
         with open(seed_image_path, 'rb') as f:
@@ -448,11 +456,13 @@ colorful children's storybook animation with maximum wonder and joy"""
         
         logger.info(f"💾 Video metadata stored for story {story_id}")
         
-        # Generate the video using the seed image for consistency
-        logger.info(f"🎨 Using seed image: {seed_image}")
-        logger.info(f"🚀 Calling generate_video_from_image_seed...")
+        # TEMPORARY: Skip image seed to test text-only generation
+        logger.info(f"🧪 TESTING MODE: Skipping image seed to isolate text prompt issue")
+        logger.info(f"🎨 Would use seed image: {seed_image}")
+        logger.info(f"🚀 Calling generate_direct_story_video instead...")
         
-        generated_file = generate_video_from_image_seed(video_prompt, seed_image, story_id)
+        # Use direct video generation (no image) for testing
+        generated_file = generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
         
         if generated_file:
             # Update metadata
@@ -542,6 +552,14 @@ bright children's book illustration style with wonder and delight"""
         
         logger.info(f"📝 Safe direct video prompt created: {len(enhanced_prompt)} characters (DD approach)")
         logger.info(f"🎯 Direct video prompt: {enhanced_prompt}")
+        
+        # DETAILED LOGGING: Log the exact prompt being sent to Veo
+        logger.info(f"🔍 FULL PROMPT BEING SENT TO VEO API:")
+        logger.info(f"🔍 ========================================")
+        logger.info(f"🔍 {enhanced_prompt}")
+        logger.info(f"🔍 ========================================")
+        logger.info(f"🔍 Prompt length: {len(enhanced_prompt)} characters")
+        logger.info(f"🔍 Prompt words: {len(enhanced_prompt.split())} words")
         
         config = types.GenerateVideosConfig(
             # Removed person_generation parameter - using default for kids content  
