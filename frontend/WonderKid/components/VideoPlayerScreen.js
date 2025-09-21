@@ -9,27 +9,34 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Linking,
+  Alert
 } from 'react-native';
+import Constants from 'expo-constants';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
 
+// Check if running in Expo Go (known compatibility issues with expo-video v3)
+const isExpoGo = Constants.appOwnership === 'expo';
+
 const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   const [videoUrl, setVideoUrl] = useState(null);
+  const [gcsUrl, setGcsUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [videoStatus, setVideoStatus] = useState('checking');
   const [generationProgress, setGenerationProgress] = useState(0);
   const checkInterval = useRef(null);
 
-  // Initialize video player with expo-video v3
-  const player = useVideoPlayer(videoUrl ? videoUrl : null, (player) => {
+  // Initialize video player with expo-video v3 (only for standalone builds)
+  const player = !isExpoGo ? useVideoPlayer(videoUrl ? videoUrl : null, (player) => {
     if (player) {
       player.loop = false;
       player.muted = false;
     }
-  });
+  }) : null;
 
   useEffect(() => {
     checkVideoStatus();
@@ -65,39 +72,51 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
         console.log('✅ Video completed!');
         console.log('☁️ GCS URL:', data.gcs_url || 'None');
         console.log('📁 Local URL:', data.video_url || 'None');
+        console.log('🔧 Running in Expo Go:', isExpoGo);
         console.log('📋 Full response:', JSON.stringify(data));
-        
-        // Always prefer GCS URL for reliability, but try local first in Expo Go
-        if (data.video_url) {
-          console.log('🎯 Using local URL for Expo Go compatibility');
-          const fullUrl = data.video_url.startsWith('http')
-            ? data.video_url
-            : `${API_URL}${data.video_url}`;
-          console.log('🌐 Full Local URL:', fullUrl);
-          setVideoUrl(fullUrl);
-          setLoading(false);
-          setError(null);
 
-          if (checkInterval.current) {
-            clearInterval(checkInterval.current);
-          }
-        } else if (data.gcs_url) {
-          console.log('🎯 Falling back to GCS URL');
-          console.log('🌐 Full GCS URL:', data.gcs_url);
+        // Store both URLs
+        if (data.gcs_url) {
+          setGcsUrl(data.gcs_url);
+        }
 
-          // Set the video URL directly - GCS URLs are public
-          setVideoUrl(data.gcs_url);
-          setLoading(false);
-          setError(null);
-          
-          if (checkInterval.current) {
-            clearInterval(checkInterval.current);
+        if (isExpoGo) {
+          // For Expo Go, prefer GCS URL for better compatibility
+          console.log('🎯 Expo Go detected - using GCS URL for better compatibility');
+          if (data.gcs_url) {
+            setVideoUrl(data.gcs_url);
+            setLoading(false);
+            setError(null);
+          } else {
+            console.error('❌ No GCS URL available for Expo Go');
+            setError('Video playback not available in Expo Go - GCS URL required');
+            setLoading(false);
           }
         } else {
-          console.error('❌ No video URL available in response');
-          console.error('📋 Response data:', data);
-          setError('Video URL not available');
-          setLoading(false);
+          // For standalone builds, try local URL first, then GCS
+          if (data.video_url) {
+            console.log('🎯 Using local URL for standalone build');
+            const fullUrl = data.video_url.startsWith('http')
+              ? data.video_url
+              : `${API_URL}${data.video_url}`;
+            console.log('🌐 Full Local URL:', fullUrl);
+            setVideoUrl(fullUrl);
+            setLoading(false);
+            setError(null);
+          } else if (data.gcs_url) {
+            console.log('🎯 Falling back to GCS URL');
+            setVideoUrl(data.gcs_url);
+            setLoading(false);
+            setError(null);
+          } else {
+            console.error('❌ No video URL available');
+            setError('Video URL not available');
+            setLoading(false);
+          }
+        }
+
+        if (checkInterval.current) {
+          clearInterval(checkInterval.current);
         }
       } else if (data.status === 'processing') {
         // Keep loading, video is being generated
@@ -165,9 +184,35 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     setError(`Failed to play video: ${error?.message || 'Unknown error'}. Please try again.`);
   };
 
-  // Add error handling for the player (v3 API)
+  const openVideoExternally = async () => {
+    if (gcsUrl || videoUrl) {
+      const urlToOpen = gcsUrl || videoUrl;
+      console.log('🌐 Opening video externally:', urlToOpen);
+      try {
+        const canOpen = await Linking.canOpenURL(urlToOpen);
+        if (canOpen) {
+          await Linking.openURL(urlToOpen);
+        } else {
+          Alert.alert(
+            "Can't Open Video",
+            "Your device cannot open this video URL. Please try again later.",
+            [{ text: 'OK' }]
+          );
+        }
+      } catch (error) {
+        console.error('❌ Error opening video externally:', error);
+        Alert.alert(
+          "Error",
+          "Failed to open video. Please try again later.",
+          [{ text: 'OK' }]
+        );
+      }
+    }
+  };
+
+  // Add error handling for the player (v3 API) - only for standalone builds
   useEffect(() => {
-    if (player) {
+    if (player && !isExpoGo) {
       const handleError = (error) => {
         console.error('🎬 Video player error:', error);
         handleVideoError(error);
@@ -182,9 +227,9 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     }
   }, [player]);
 
-  // Update player source when videoUrl changes (v3 API)
+  // Update player source when videoUrl changes (v3 API) - only for standalone builds
   useEffect(() => {
-    if (player && videoUrl) {
+    if (player && videoUrl && !isExpoGo) {
       console.log('🎬 Setting video source:', videoUrl);
       try {
         // In v3, might need to use different method
@@ -275,42 +320,72 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                 <Text style={styles.videoInfo}>
                   🎬 Playing from: {videoUrl.includes('storage.googleapis.com') ? 'Google Cloud' : 'Server'}
                 </Text>
-                
-                <View style={styles.videoWrapper}>
-                    <VideoView
-                        style={styles.video}
-                        player={player}
-                        allowsFullscreen
-                        allowsPictureInPicture
-                        contentFit="contain"
-                        nativeControls={Platform.OS === 'ios'}
-                    />
-                    
-                    {Platform.OS === 'android' && (
-                      <View style={styles.controls}>
-                        <TouchableOpacity 
-                          onPress={handlePlayPause}
-                          style={styles.playPauseButton}
-                        >
-                          <Ionicons
-                            name={player?.playing ? "pause" : "play"}
-                            size={32}
-                            color="white"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                </View>
 
-                <View style={styles.progressContainer}>
-                  <Text style={styles.timeText}>
-                    🎬 Video Player Ready
+                {isExpoGo ? (
+                  // Expo Go Fallback UI
+                  <View style={styles.expoGoFallback}>
+                    <View style={styles.videoPlaceholder}>
+                      <Ionicons name="videocam" size={80} color="#FFD700" />
+                      <Text style={styles.expoGoTitle}>Video Ready!</Text>
+                      <Text style={styles.expoGoMessage}>
+                        Due to Expo Go limitations, videos need to be opened in your browser for the best experience.
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.openExternalButton}
+                      onPress={openVideoExternally}
+                    >
+                      <Ionicons name="open-outline" size={24} color="#1a1a2e" />
+                      <Text style={styles.openExternalButtonText}>Open Video in Browser</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.videoDescription}>
+                      ✨ Your personalized story video with {sceneCount || 10} scenes
+                    </Text>
+                  </View>
+                ) : (
+                  // Standalone App UI (expo-video v3)
+                  <View style={styles.videoWrapper}>
+                      <VideoView
+                          style={styles.video}
+                          player={player}
+                          allowsFullscreen
+                          allowsPictureInPicture
+                          contentFit="contain"
+                          nativeControls={Platform.OS === 'ios'}
+                      />
+
+                      {Platform.OS === 'android' && (
+                        <View style={styles.controls}>
+                          <TouchableOpacity
+                            onPress={handlePlayPause}
+                            style={styles.playPauseButton}
+                          >
+                            <Ionicons
+                              name={player?.playing ? "pause" : "play"}
+                              size={32}
+                              color="white"
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                  </View>
+                )}
+
+                {!isExpoGo && (
+                  <View style={styles.progressContainer}>
+                    <Text style={styles.timeText}>
+                      🎬 Video Player Ready
+                    </Text>
+                  </View>
+                )}
+
+                {!isExpoGo && (
+                  <Text style={styles.videoDescription}>
+                    ✨ Your personalized story video with {sceneCount || 10} scenes
                   </Text>
-                </View>
-
-                <Text style={styles.videoDescription}>
-                  ✨ Your personalized story video with {sceneCount || 10} scenes
-                </Text>
+                )}
               </>
             )}
           </View>
@@ -485,6 +560,62 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
+    fontFamily: 'Comic Sans MS',
+  },
+  // Expo Go Fallback Styles
+  expoGoFallback: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  videoPlaceholder: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    borderStyle: 'dashed',
+    marginBottom: 30,
+    width: '100%',
+  },
+  expoGoTitle: {
+    color: '#FFD700',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    fontFamily: 'Comic Sans MS',
+  },
+  expoGoMessage: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    fontFamily: 'Comic Sans MS',
+  },
+  openExternalButton: {
+    backgroundColor: '#FFD700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  openExternalButtonText: {
+    color: '#1a1a2e',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
     fontFamily: 'Comic Sans MS',
   },
 });

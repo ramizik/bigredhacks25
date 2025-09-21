@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,7 +9,6 @@ import {
   Dimensions,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -18,7 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import VideoPlayerScreen from './VideoPlayerScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -36,7 +35,6 @@ export default function StoryScreen() {
   });
 
   // Video generation states
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoTriggered, setVideoTriggered] = useState(false);
   const [isCheckingVideoStatus, setIsCheckingVideoStatus] = useState(false);
 
@@ -322,7 +320,11 @@ export default function StoryScreen() {
   };
 
   const generateVideo = () => {
-    setShowVideoPlayer(true);
+    Alert.alert(
+      "🎬 Video Generation Started",
+      "Your magical video is now being created! This will take 2-3 minutes. You can continue reading your story and check back later.",
+      [{ text: 'OK' }]
+    );
   };
 
   const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
@@ -360,7 +362,16 @@ export default function StoryScreen() {
 
       if (data.status === 'completed' && (data.video_url || data.gcs_url)) {
         console.log(`✅ Video ready! GCS URL: ${data.gcs_url}, Local URL: ${data.video_url}`);
-        setShowVideoPlayer(true);
+
+        // Prefer GCS URL for better browser compatibility
+        const videoUrl = data.gcs_url || (data.video_url?.startsWith('http') ? data.video_url : `${API_URL}${data.video_url}`);
+
+        console.log(`🌐 Opening video in browser: ${videoUrl}`);
+
+        await WebBrowser.openBrowserAsync(videoUrl, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+          controlsColor: '#FFD700',
+        });
       } else if (data.status === 'processing' || data.status === 'started') {
         Alert.alert(
           "⏳ Still Brewing!",
@@ -375,9 +386,15 @@ export default function StoryScreen() {
           [{ text: 'OK' }]
         );
       } else {
-        console.log(`🎬 Video status: ${data.status}, letting VideoPlayerScreen handle it`);
-        // Not started or other status, let the VideoPlayerScreen handle triggering it
-        setShowVideoPlayer(true);
+        console.log(`🎬 Video status: ${data.status}, triggering generation...`);
+        Alert.alert(
+          "🎬 Video Not Ready",
+          "Your video hasn't been generated yet. Let's create it now! This usually takes 2-3 minutes.",
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Generate Video', onPress: generateVideo }
+          ]
+        );
       }
     } catch (error) {
       console.error("Error checking video status:", error);
@@ -742,26 +759,6 @@ export default function StoryScreen() {
       </SafeAreaView>
     );
   }
-
-  return (
-    <>
-      {/* Video Player Modal */}
-      <Modal
-        visible={showVideoPlayer}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <VideoPlayerScreen
-          storyId={sessionStoryIdRef.current || storyData.storyId || 'current_story'}
-          onClose={() => {
-            console.log(`📹 Closing video player for story: ${sessionStoryIdRef.current || storyData.storyId}`);
-            setShowVideoPlayer(false);
-          }}
-          sceneCount={storyData.iteration}
-        />
-      </Modal>
-    </>
-  );
 }
 
 const styles = StyleSheet.create({
