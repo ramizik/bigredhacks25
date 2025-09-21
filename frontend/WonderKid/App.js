@@ -15,9 +15,9 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" backgroundColor="#f0f9ff" translucent={false} />
+      <StatusBar style="dark" backgroundColor="#9683ec" translucent={false} />
       <LinearGradient
-        colors={['#fef3c7', '#fdf2f8', '#dbeafe']}
+        colors={['#9683ec', '#5d16a6', '#7fdeff']}
         style={styles.gradient}
       >
         <NavigationContainer>
@@ -38,7 +38,7 @@ export default function App() {
                 return <Ionicons name={iconName} size={28} color={color} />;
               },
               tabBarActiveTintColor: '#ffffff',
-              tabBarInactiveTintColor: '#8b5cf6',
+              tabBarInactiveTintColor: '#5d16a6',
               tabBarStyle: {
                 backgroundColor: '#ffffff',
                 borderTopLeftRadius: 0,
@@ -64,7 +64,7 @@ export default function App() {
               tabBarLabelStyle: {
                 display: 'none',
               },
-              tabBarActiveBackgroundColor: '#8b5cf6',
+              tabBarActiveBackgroundColor: '#9683ec',
             })}
           >
             <Tab.Screen 
@@ -89,7 +89,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#9683ec',
   },
   gradient: {
     flex: 1,

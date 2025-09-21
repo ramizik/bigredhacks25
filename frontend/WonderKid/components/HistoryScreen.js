@@ -23,7 +23,7 @@ export default function HistoryScreen() {
       completedDate: "Today",
       rating: 5,
       thumbnail: "🐰",
-      color: ['#6ee7b7', '#60a5fa']
+      color: ['#a5e6ba', '#7fdeff']
     },
     {
       id: 2,
@@ -31,7 +31,7 @@ export default function HistoryScreen() {
       completedDate: "Yesterday",
       rating: 4,
       thumbnail: "🚀",
-      color: ['#c084fc', '#f472b6']
+      color: ['#9683ec', '#ef233c']
     },
     {
       id: 3,
@@ -39,7 +39,7 @@ export default function HistoryScreen() {
       completedDate: "2 days ago",
       rating: 5,
       thumbnail: "🐠",
-      color: ['#60a5fa', '#22d3ee']
+      color: ['#7fdeff', '#a5e6ba']
     },
     {
       id: 4,
@@ -47,7 +47,7 @@ export default function HistoryScreen() {
       completedDate: "3 days ago",
       rating: 4,
       thumbnail: "🦝",
-      color: ['#6ee7b7', '#fbbf24']
+      color: ['#a5e6ba', '#f35b04']
     },
     {
       id: 5,
@@ -55,7 +55,7 @@ export default function HistoryScreen() {
       completedDate: "1 week ago",
       rating: 5,
       thumbnail: "👸",
-      color: ['#f472b6', '#c084fc']
+      color: ['#ef233c', '#9683ec']
     },
     {
       id: 6,
@@ -63,7 +63,7 @@ export default function HistoryScreen() {
       completedDate: "1 week ago",
       rating: 4,
       thumbnail: "🦕",
-      color: ['#fb923c', '#dc2626']
+      color: ['#f35b04', '#ef233c']
     }
   ];
 
@@ -89,7 +89,7 @@ export default function HistoryScreen() {
         key={i}
         name={i < rating ? "star" : "star-outline"}
         size={16}
-        color={i < rating ? "#fbbf24" : "#d1d5db"}
+        color={i < rating ? "#f35b04" : "#d1d5db"}
         style={styles.star}
       />
     ));
@@ -98,7 +98,7 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#fed7aa', '#fef3c7', '#fce7f3']}
+        colors={['#7fdeff', '#a5e6ba', '#9683ec']}
         style={styles.gradientContainer}
       >
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -106,7 +106,7 @@ export default function HistoryScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Your Story Collection</Text>
           <View style={styles.headerBadge}>
-            <Ionicons name="library" size={20} color="#ea580c" />
+            <Ionicons name="library" size={20} color="#f35b04" />
             <Text style={styles.headerBadgeText}>
               {completedStories.length} Stories Read
             </Text>
@@ -144,7 +144,7 @@ export default function HistoryScreen() {
 
                   {/* Date */}
                   <View style={styles.dateContainer}>
-                    <Ionicons name="time" size={14} color="#6b7280" />
+                    <Ionicons name="time" size={14} color="#5d16a6" />
                     <Text style={styles.dateText}>{story.completedDate}</Text>
                   </View>
                 </View>
@@ -156,7 +156,7 @@ export default function HistoryScreen() {
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={['#fb923c', '#f472b6']}
+                    colors={['#f35b04', '#ef233c']}
                     style={styles.readAgainButtonGradient}
                   >
                     <Text style={styles.readAgainButtonText}>Read Again</Text>
@@ -175,7 +175,7 @@ export default function HistoryScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#8b5cf6', '#3b82f6']}
+              colors={['#9683ec', '#5d16a6']}
               style={styles.newStoryButtonGradient}
             >
               <Ionicons name="book" size={24} color="white" />

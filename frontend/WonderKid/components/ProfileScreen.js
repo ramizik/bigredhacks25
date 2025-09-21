@@ -32,7 +32,7 @@ export default function ProfileScreen() {
       description: "Read your first story!", 
       icon: "📖", 
       unlocked: true,
-      color: ['#10b981', '#34d399']
+      color: ['#a5e6ba', '#7fdeff']
     },
     { 
       id: 2, 
@@ -40,7 +40,7 @@ export default function ProfileScreen() {
       description: "Read 5 stories", 
       icon: "⚡", 
       unlocked: true,
-      color: ['#fbbf24', '#fb923c']
+      color: ['#f35b04', '#ef233c']
     },
     { 
       id: 3, 
@@ -48,7 +48,7 @@ export default function ProfileScreen() {
       description: "Read for 5 days in a row", 
       icon: "❤️", 
       unlocked: true,
-      color: ['#f472b6', '#dc2626']
+      color: ['#ef233c', '#f35b04']
     },
     { 
       id: 4, 
@@ -66,14 +66,14 @@ export default function ProfileScreen() {
       current: 1, 
       target: 2, 
       unit: "stories",
-      color: '#3b82f6'
+      color: '#9683ec'
     },
     { 
       label: "Weekly Goal", 
       current: 6, 
       target: 10, 
       unit: "stories",
-      color: '#8b5cf6'
+      color: '#5d16a6'
     }
   ];
 
@@ -86,7 +86,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#d1fae5', '#dbeafe', '#f3e8ff']}
+        colors={['#a5e6ba', '#7fdeff', '#9683ec']}
         style={styles.gradientContainer}
       >
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -96,7 +96,7 @@ export default function ProfileScreen() {
             <View style={styles.profileContent}>
               {/* Avatar */}
               <LinearGradient
-                colors={['#8b5cf6', '#ec4899']}
+                colors={['#9683ec', '#5d16a6']}
                 style={styles.avatar}
               >
                 <Text style={styles.avatarEmoji}>{profileData.avatar}</Text>
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
               <Text style={styles.profileName}>{profileData.name}</Text>
               <View style={styles.levelContainer}>
                 <LinearGradient
-                  colors={['#fbbf24', '#fb923c']}
+                  colors={['#f35b04', '#ef233c']}
                   style={styles.levelBadge}
                 >
                   <Ionicons name="trophy" size={20} color="white" />
@@ -123,7 +123,7 @@ export default function ProfileScreen() {
             <View style={styles.statCard}>
               <View style={styles.statIconContainer}>
                 <View style={styles.statIcon}>
-                  <Ionicons name="book" size={24} color="#3b82f6" />
+                  <Ionicons name="book" size={24} color="#9683ec" />
                 </View>
               </View>
               <Text style={styles.statNumber}>{profileData.storiesRead}</Text>
@@ -133,7 +133,7 @@ export default function ProfileScreen() {
             <View style={styles.statCard}>
               <View style={styles.statIconContainer}>
                 <View style={styles.statIcon}>
-                  <Ionicons name="calendar" size={24} color="#10b981" />
+                  <Ionicons name="calendar" size={24} color="#a5e6ba" />
                 </View>
               </View>
               <Text style={styles.statNumber}>{profileData.streak}</Text>
@@ -146,7 +146,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="flag" size={24} color="#8b5cf6" />
+              <Ionicons name="flag" size={24} color="#5d16a6" />
               <Text style={styles.sectionTitle}>Reading Goals</Text>
             </View>
             
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="medal" size={24} color="#fbbf24" />
+              <Ionicons name="medal" size={24} color="#f35b04" />
               <Text style={styles.sectionTitle}>Achievements</Text>
             </View>
             
@@ -230,7 +230,7 @@ export default function ProfileScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#6b7280', '#4b5563']}
+              colors={['#9683ec', '#5d16a6']}
               style={styles.settingsButtonGradient}
             >
               <Ionicons name="settings" size={24} color="white" />

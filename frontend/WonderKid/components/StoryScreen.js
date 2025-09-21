@@ -370,7 +370,7 @@ export default function StoryScreen() {
 
         await WebBrowser.openBrowserAsync(videoUrl, {
           presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-          controlsColor: '#FFD700',
+          controlsColor: '#f35b04',
         });
       } else if (data.status === 'processing' || data.status === 'started') {
         Alert.alert(
@@ -413,7 +413,7 @@ export default function StoryScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <LinearGradient
-          colors={['#f3e8ff', '#fce7f3']}
+          colors={['#7fdeff', '#a5e6ba']}
           style={styles.gradientContainer}
         >
           <ScrollView contentContainerStyle={styles.inputScrollContainer}>
@@ -421,7 +421,7 @@ export default function StoryScreen() {
             <View style={styles.headerContainer}>
               <View style={styles.headerIconContainer}>
                 <LinearGradient
-                  colors={['#8b5cf6', '#ec4899']}
+                  colors={['#9683ec', '#5d16a6']}
                   style={styles.headerIcon}
                 >
                   <Ionicons name="sparkles" size={40} color="white" />
@@ -457,7 +457,7 @@ export default function StoryScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#8b5cf6', '#ec4899']}
+                colors={['#9683ec', '#5d16a6']}
                 style={styles.startButtonGradient}
               >
                 <Text style={styles.startButtonText}>
@@ -487,7 +487,7 @@ export default function StoryScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#dbeafe', '#f3e8ff', '#fce7f3']}
+          colors={['#7fdeff', '#a5e6ba', '#9683ec']}
           style={styles.gradientContainer}
         >
         <View style={styles.loadingContainer}>
@@ -502,7 +502,7 @@ export default function StoryScreen() {
               ]}
             >
               <LinearGradient
-                colors={['#3b82f6', '#8b5cf6', '#ec4899']}
+                colors={['#9683ec', '#5d16a6', '#f35b04']}
                 style={styles.loadingIcon}
               >
                 <View style={styles.spinningLogo} />
@@ -564,7 +564,7 @@ export default function StoryScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#e0f2fe', '#f0fdf4']}
+          colors={['#7fdeff', '#a5e6ba']}
           style={styles.gradientContainer}
         >
         <ScrollView style={styles.readingContainer}>
@@ -592,7 +592,7 @@ export default function StoryScreen() {
               <View style={styles.progressBarBg}>
                 <View style={[styles.progressBar, { width: `${progress}%` }]}>
                   <LinearGradient
-                    colors={['#10b981', '#3b82f6']}
+                    colors={['#a5e6ba', '#9683ec']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.progressBarGradient}
@@ -620,7 +620,7 @@ export default function StoryScreen() {
               />
             ) : (
               <LinearGradient
-                colors={['#fef3c7', '#fce7f3', '#e0e7ff']}
+                colors={['#7fdeff', '#a5e6ba', '#9683ec']}
                 style={styles.illustrationPlaceholder}
               >
                 <Text style={styles.illustrationEmoji}>🌟</Text>
@@ -646,7 +646,7 @@ export default function StoryScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#10b981', '#3b82f6']}
+                colors={['#a5e6ba', '#9683ec']}
                 style={styles.nextButtonGradient}
               >
                 <Text style={styles.nextButtonEmoji}>🐰</Text>
@@ -665,7 +665,7 @@ export default function StoryScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#fef3c7', '#fee2e2']}
+          colors={['#7fdeff', '#a5e6ba']}
           style={styles.gradientContainer}
         >
         <ScrollView style={styles.choiceContainer}>
@@ -685,14 +685,14 @@ export default function StoryScreen() {
                 <View style={styles.choiceCard}>
                   <View style={styles.choiceNumberContainer}>
                     <LinearGradient
-                      colors={['#f97316', '#dc2626']}
+                      colors={['#f35b04', '#ef233c']}
                       style={styles.choiceNumber}
                     >
                       <Text style={styles.choiceNumberText}>{index + 1}</Text>
                     </LinearGradient>
                   </View>
                   <Text style={styles.choiceText}>{choice}</Text>
-                  <Ionicons name="arrow-forward" size={24} color="#f97316" />
+                  <Ionicons name="arrow-forward" size={24} color="#f35b04" />
                 </View>
               </TouchableOpacity>
             ))}
@@ -708,7 +708,7 @@ export default function StoryScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#fef3c7', '#fed7aa']}
+          colors={['#7fdeff', '#a5e6ba']}
           style={styles.gradientContainer}
         >
         <View style={styles.completeContainer}>
@@ -726,7 +726,7 @@ export default function StoryScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#dc2626', '#ec4899']}
+                colors={['#ef233c', '#f35b04']}
                 style={styles.actionButtonGradient}
               >
                 {isCheckingVideoStatus ? (
@@ -746,7 +746,7 @@ export default function StoryScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#8b5cf6', '#3b82f6']}
+                colors={['#9683ec', '#5d16a6']}
                 style={styles.actionButtonGradient}
               >
                 <Ionicons name="refresh" size={24} color="white" />
@@ -798,13 +798,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#7c3aed',
+    color: '#9683ec',
     marginBottom: 12,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 18,
-    color: '#8b5cf6',
+    color: '#5d16a6',
     textAlign: 'center',
   },
   inputContainer: {
@@ -878,7 +878,7 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3b82f6',
+    shadowColor: '#9683ec',
     shadowOffset: {
       width: 0,
       height: 12,
@@ -934,7 +934,7 @@ const styles = StyleSheet.create({
   loadingTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#1e40af',
+    color: '#5d16a6',
     textAlign: 'center',
     marginBottom: 16,
     textShadowColor: 'rgba(59, 130, 246, 0.3)',
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
   },
   loadingSubtitle: {
     fontSize: 20,
-    color: '#6366f1',
+    color: '#9683ec',
     textAlign: 'center',
     fontWeight: '600',
     marginBottom: 32,
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   watchVideoButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#9683ec',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1021,7 +1021,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#8b5cf6',
+    borderColor: '#9683ec',
     borderStyle: 'dashed',
   },
   illustrationEmoji: {
@@ -1031,13 +1031,13 @@ const styles = StyleSheet.create({
   illustrationText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: '#5d16a6',
   },
   storyImage: {
     height: 192,
     borderRadius: 24,
     borderWidth: 3,
-    borderColor: '#8b5cf6',
+    borderColor: '#9683ec',
   },
   storyTextContainer: {
     flex: 1,
@@ -1094,13 +1094,13 @@ const styles = StyleSheet.create({
   choiceTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ea580c',
+    color: '#f35b04',
     marginBottom: 12,
     textAlign: 'center',
   },
   choiceSubtitle: {
     fontSize: 18,
-    color: '#fb923c',
+    color: '#f35b04',
     textAlign: 'center',
   },
   choicesContainer: {
@@ -1163,13 +1163,13 @@ const styles = StyleSheet.create({
   completeTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ea580c',
+    color: '#f35b04',
     marginBottom: 12,
     textAlign: 'center',
   },
   completeSubtitle: {
     fontSize: 18,
-    color: '#fb923c',
+    color: '#f35b04',
     textAlign: 'center',
   },
   completeButtonsContainer: {

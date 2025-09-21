@@ -1,19 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Linking,
-  Alert
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Linking,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
-import Constants from 'expo-constants';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
@@ -268,7 +268,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
           style={styles.closeButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="close" size={24} color="#333" />
+          <Ionicons name="close" size={24} color="#5d16a6" />
         </TouchableOpacity>
         <Text style={styles.title}>Your Story Video</Text>
         <View style={styles.placeholder} />
@@ -276,7 +276,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6B46C1" />
+          <ActivityIndicator size="large" color="#9683ec" />
           <Text style={styles.loadingText}>
             {videoStatus === 'processing' 
               ? `Creating your magical video... ${Math.round(generationProgress)}%`
@@ -303,7 +303,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#EF4444" />
+          <Ionicons name="alert-circle" size={48} color="#ef233c" />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={styles.retryButton}
@@ -325,7 +325,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                   // Expo Go Fallback UI
                   <View style={styles.expoGoFallback}>
                     <View style={styles.videoPlaceholder}>
-                      <Ionicons name="videocam" size={80} color="#FFD700" />
+                      <Ionicons name="videocam" size={80} color="#f35b04" />
                       <Text style={styles.expoGoTitle}>Video Ready!</Text>
                       <Text style={styles.expoGoMessage}>
                         Due to Expo Go limitations, videos need to be opened in your browser for the best experience.
@@ -336,7 +336,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                       style={styles.openExternalButton}
                       onPress={openVideoExternally}
                     >
-                      <Ionicons name="open-outline" size={24} color="#1a1a2e" />
+                      <Ionicons name="open-outline" size={24} color="#5d16a6" />
                       <Text style={styles.openExternalButtonText}>Open Video in Browser</Text>
                     </TouchableOpacity>
 
@@ -398,7 +398,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#5d16a6',
   },
   header: {
     flexDirection: 'row',
@@ -407,9 +407,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: 10,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#5d16a6',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#9683ec',
   },
   closeButton: {
     padding: 10,
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: '#f35b04',
     textAlign: 'center',
     flex: 1,
     fontFamily: 'Comic Sans MS',
@@ -432,20 +432,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    color: '#FFD700',
+    color: '#f35b04',
     fontSize: 18,
     marginTop: 20,
     fontFamily: 'Comic Sans MS',
   },
   subText: {
-    color: '#9CA3AF',
+    color: '#7fdeff',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,
     fontFamily: 'Comic Sans MS',
   },
   sceneCount: {
-    color: '#FFD700',
+    color: '#f35b04',
     fontSize: 16,
     textAlign: 'center',
     marginTop: 5,
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: 10,
-    backgroundColor: '#FFD700',
+    backgroundColor: '#f35b04',
     borderRadius: 5,
   },
   errorContainer: {
@@ -468,20 +468,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: '#9CA3AF',
+    color: '#7fdeff',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: 'Comic Sans MS',
   },
   retryButton: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#f35b04',
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
   },
   retryButtonText: {
-    color: '#1a1a2e',
+    color: '#5d16a6',
     fontSize: 18,
     fontWeight: 'bold',
     fontFamily: 'Comic Sans MS',
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   timeText: {
-    color: '#FFD700',
+    color: '#f35b04',
     fontSize: 16,
     fontFamily: 'Comic Sans MS',
   },
@@ -544,11 +544,11 @@ const styles = StyleSheet.create({
   },
   progressFillVideo: {
     height: '100%',
-    backgroundColor: '#FFD700',
+    backgroundColor: '#f35b04',
     borderRadius: 4,
   },
   videoInfo: {
-    color: '#9CA3AF',
+    color: '#7fdeff',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Comic Sans MS',
   },
   videoDescription: {
-    color: '#9CA3AF',
+    color: '#7fdeff',
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
@@ -573,13 +573,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 215, 0, 0.1)',
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#FFD700',
+    borderColor: '#f35b04',
     borderStyle: 'dashed',
     marginBottom: 30,
     width: '100%',
   },
   expoGoTitle: {
-    color: '#FFD700',
+    color: '#f35b04',
     fontSize: 24,
     fontWeight: 'bold',
     marginTop: 15,
@@ -587,14 +587,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Comic Sans MS',
   },
   expoGoMessage: {
-    color: '#9CA3AF',
+    color: '#7fdeff',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
     fontFamily: 'Comic Sans MS',
   },
   openExternalButton: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#f35b04',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   openExternalButtonText: {
-    color: '#1a1a2e',
+    color: '#5d16a6',
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 10,
