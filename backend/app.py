@@ -524,17 +524,23 @@ async def generate_story(request: StoryThemeRequest):
         agent_result = generate_kid_story(request.theme, request.age_group)
 
         story_data = agent_result["story_data"]
-        story_id = story_state.story_id  # Use the story ID from story_state
+
+        # Use story_id from agent_result (more reliable than global story_state)
+        story_id = agent_result.get("story_id") or story_state.story_id
 
         # CRITICAL: Validate story_id is not empty - generate fallback if needed
         if not story_id or story_id.strip() == "":
             from datetime import datetime
             fallback_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            logger.error(f"❌ Story state story_id is empty! Using fallback: {fallback_id}")
+            logger.error(f"❌ Both agent_result and story_state story_id are empty! Using fallback: {fallback_id}")
             story_id = fallback_id
             story_state.story_id = fallback_id  # Update story state with fallback
+        else:
+            # Ensure story_state is synchronized with the agent result
+            story_state.story_id = story_id
 
-        logger.info(f"📊 Story state after generation - ID: '{story_state.story_id}'")
+        logger.info(f"📊 Agent result story_id: '{agent_result.get('story_id')}'")
+        logger.info(f"📊 Story state story_id: '{story_state.story_id}'")
         logger.info(f"📊 Final story_id being returned: '{story_id}'")
         logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
         
@@ -706,11 +712,14 @@ async def continue_story(request: StoryChoiceRequest):
         
         logger.info(f"✅ Story continued successfully. Progress: {progress_percentage}%")
 
-        # CRITICAL: Ensure story_id is valid before returning
-        response_story_id = story_state.story_id
+        # CRITICAL: Ensure story_id is valid before returning - prioritize agent_result
+        response_story_id = agent_result.get("story_id") or story_state.story_id
         if not response_story_id or response_story_id.strip() == "":
-            logger.error(f"❌ Story state story_id is empty in continue-story! Using request story_id as fallback")
+            logger.error(f"❌ Both agent_result and story_state story_id are empty in continue-story! Using request story_id as fallback")
             response_story_id = request.story_id
+        else:
+            # Ensure story_state is synchronized
+            story_state.story_id = response_story_id
 
         return StoryResponse(
             story_id=response_story_id,  # Use backend's authoritative story ID (with fallback)

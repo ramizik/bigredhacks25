@@ -334,6 +334,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         return {
             "status": "success",
             "story_data": story_data,
+            "story_id": story_state.story_id,  # Include story_id in response for reliability
             "message": "AI story generated successfully!",
             "ai_powered": True,
             "image_generation": image_result,
@@ -491,6 +492,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         
         return {
             "status": "success",
+            "story_id": story_state.story_id,  # Include story_id in response for reliability
             "continuation_data": continuation_data,
             "updated_story": {
                 "paragraphs": story_state.paragraphs,
