@@ -333,7 +333,7 @@ class StoryResponse(BaseModel):
     illustration_prompt: str = ""
     mood: str = "adventure"
     is_complete: bool = False
-    progress_percentage: int = 0
+    progress_percentage: float = 0.0
     image_url: Optional[str] = None
     image_generated: bool = False
     scene_count: int = 0
@@ -748,7 +748,7 @@ async def continue_story(request: StoryChoiceRequest):
             illustration_prompt=continuation_data.get("illustration_prompts", [""])[0],
             mood=continuation_data.get("mood", "happy"),
             is_complete=is_complete,
-            progress_percentage=int(progress_percentage),
+            progress_percentage=progress_percentage,
             image_url=image_url,
             image_generated=image_generated,
             scene_count=story_progress.get("scene_count", 0),
@@ -1552,7 +1552,7 @@ async def get_user_stories(user_id: str):
                 "total_paragraphs": story_data["total_paragraphs"],
                 "reading_time": story_data["reading_time"],
                 "completed_at": story_data["completed_at"],
-                "progress_percentage": int((story_data["completed_paragraphs"] / story_data["total_paragraphs"]) * 100)
+                "progress_percentage": (story_data["completed_paragraphs"] / story_data["total_paragraphs"]) * 100
             })
         
         return {"stories": stories}
