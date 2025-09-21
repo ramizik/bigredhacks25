@@ -883,8 +883,6 @@ async def get_video_status(story_id: str):
     """Check the status of video generation for a story"""
     logger.info(f"📊 === VIDEO STATUS REQUEST ===")
     logger.info(f"📊 Story ID requested: {story_id}")
-    logger.info(f"📊 Current time: {datetime.now().isoformat()}")
-
     try:
         logger.info(f"📊 CHECKPOINT 1: Starting video status check for: {story_id}")
         logger.info(f"📊 CHECKPOINT 2: Available video tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
