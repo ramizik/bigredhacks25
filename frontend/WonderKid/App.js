@@ -43,9 +43,9 @@ export default function App() {
                 backgroundColor: '#ffffff',
                 borderTopLeftRadius: 25,
                 borderTopRightRadius: 25,
-                height: 90,
-                paddingTop: 15,
-                paddingBottom: 30,
+                height: 95,
+                paddingTop: 20,
+                paddingBottom: 35,
                 paddingHorizontal: 20,
                 shadowColor: '#ef233c',
                 shadowOffset: {
@@ -64,9 +64,12 @@ export default function App() {
               tabBarItemStyle: {
                 borderRadius: 20,
                 marginHorizontal: 8,
-                marginVertical: 6,
-                paddingVertical: 10,
-                paddingHorizontal: 16,
+                marginVertical: 8,
+                paddingVertical: 12,
+                paddingHorizontal: 18,
+                minHeight: 50,
+                justifyContent: 'center',
+                alignItems: 'center',
               },
               tabBarActiveBackgroundColor: '#ef233c',
               tabBarLabelStyle: {
@@ -97,6 +100,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#9683ec',
+    paddingTop: 10,
   },
   gradient: {
     flex: 1,

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
@@ -25,6 +26,13 @@ export default function HistoryScreen() {
   useEffect(() => {
     loadSessionImages();
   }, []);
+
+  // Refresh images when user navigates to this tab
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSessionImages();
+    }, [])
+  );
 
   const loadSessionImages = async () => {
     try {
@@ -187,6 +195,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 10,
   },
   gradientContainer: {
     flex: 1,

@@ -24,7 +24,10 @@ const { width, height } = Dimensions.get('window');
 
 // Helper function to save image to gallery
 const saveImageToGallery = async (imageUrl) => {
-  if (!imageUrl) return;
+  if (!imageUrl) {
+    console.log('⚠️ No image URL provided to saveImageToGallery');
+    return;
+  }
   
   try {
     const existingImages = await AsyncStorage.getItem('sessionImages');
@@ -34,10 +37,13 @@ const saveImageToGallery = async (imageUrl) => {
     if (!imageArray.includes(imageUrl)) {
       imageArray.push(imageUrl);
       await AsyncStorage.setItem('sessionImages', JSON.stringify(imageArray));
-      console.log('📸 Image saved to gallery:', imageUrl);
+      console.log('📸 Image saved to gallery! Total images:', imageArray.length);
+      console.log('🖼️ Image URL:', imageUrl);
+    } else {
+      console.log('📸 Image already exists in gallery, skipping duplicate');
     }
   } catch (error) {
-    console.error('Failed to save image to gallery:', error);
+    console.error('❌ Failed to save image to gallery:', error);
   }
 };
 
@@ -191,6 +197,7 @@ export default function StoryScreen() {
       
       // Save image to gallery if available
       if (result.image_url) {
+        console.log('🖼️ Initial story image detected:', result.image_url);
         saveImageToGallery(result.image_url);
       }
       
@@ -289,7 +296,8 @@ export default function StoryScreen() {
       }));
       
       // Save new image to gallery if available
-      if (result.image_url && result.image_url !== storyData.imageUrl) {
+      if (result.image_url) {
+        console.log('🖼️ New image detected during story continuation:', result.image_url);
         saveImageToGallery(result.image_url);
       }
       
@@ -794,6 +802,7 @@ export default function StoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 10,
   },
   keyboardContainer: {
     flex: 1,
