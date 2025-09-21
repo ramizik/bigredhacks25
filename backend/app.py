@@ -1219,31 +1219,32 @@ async def get_generated_video(filename: str):
     logger.info(f"🎬 === VIDEO FILE REQUEST ===")
     logger.info(f"🎬 Filename requested: {filename}")
     logger.info(f"📁 Current directory: {os.getcwd()}")
-    
+
     try:
-        import base64
-        
+        from fastapi.responses import StreamingResponse
+        import io
+
         # List all MP4 files in current directory
         mp4_files = glob.glob("*.mp4")
         logger.info(f"📁 Available MP4 files: {mp4_files}")
-        
+
         # Check if file exists in current directory
         file_path = Path(filename)
         logger.info(f"📁 Looking for file at: {file_path.absolute()}")
         logger.info(f"📁 File exists: {file_path.exists()}")
-        
+
         # If file doesn't exist locally, try to fetch from GCS
         if not file_path.exists():
             logger.info(f"🔍 File not found locally, checking GCS...")
             try:
                 from gcs_helper import get_gcs_manager
                 gcs = get_gcs_manager()
-                
+
                 # Check if file exists in GCS
                 if gcs.video_exists(filename):
                     logger.info(f"☁️ Video found in GCS, downloading...")
                     local_path = gcs.download_video(filename)
-                    
+
                     if local_path and os.path.exists(local_path):
                         logger.info(f"✅ Video downloaded from GCS successfully")
                         file_path = Path(local_path)
@@ -1253,47 +1254,38 @@ async def get_generated_video(filename: str):
                     logger.info(f"❌ Video not found in GCS either")
             except Exception as gcs_error:
                 logger.error(f"❌ GCS retrieval error: {str(gcs_error)}")
-                logger.info(f"📍 Falling back to base64 serving if available")
-        
+                logger.info(f"📍 Falling back to local file serving if available")
+
         if file_path.exists() and file_path.is_file():
-            # Read video file and encode as base64
-            with open(file_path, 'rb') as video_file:
-                video_data = video_file.read()
-                video_base64 = base64.b64encode(video_data).decode('utf-8')
-                
-            logger.info(f"✅ Video encoded successfully: {len(video_data)} bytes -> {len(video_base64)} base64 chars")
-            
-            # Check if we have a GCS URL for this video
-            gcs_url = None
-            for task_id, task_data in VIDEO_GENERATION_TASKS.items():
-                if task_data.get("generated_file") == filename and task_data.get("gcs_url"):
-                    gcs_url = task_data["gcs_url"]
-                    logger.info(f"☁️ Found GCS URL for video: {gcs_url}")
-                    break
-            
-            return {
-                "status": "success",
-                "filename": filename,
-                "video_data": video_base64,
-                "mime_type": "video/mp4",
-                "size_bytes": len(video_data),
-                "size_mb": round(len(video_data) / (1024 * 1024), 2),
-                "gcs_url": gcs_url  # Include GCS URL if available
-            }
+            logger.info(f"✅ Serving video file: {filename}")
+
+            def video_stream():
+                with open(file_path, 'rb') as video_file:
+                    while True:
+                        chunk = video_file.read(8192)  # Read in 8KB chunks
+                        if not chunk:
+                            break
+                        yield chunk
+
+            return StreamingResponse(
+                video_stream(),
+                media_type="video/mp4",
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Content-Disposition": f"inline; filename={filename}",
+                    "Cache-Control": "public, max-age=3600"
+                }
+            )
         else:
             logger.error(f"❌ Video file not found: {filename}")
-            
-            # Try to return GCS URL directly if available
+
+            # For streaming endpoints, we need to redirect to GCS or return 404
             for task_id, task_data in VIDEO_GENERATION_TASKS.items():
                 if task_data.get("generated_file") == filename and task_data.get("gcs_url"):
-                    logger.info(f"☁️ Returning GCS URL directly: {task_data['gcs_url']}")
-                    return {
-                        "status": "success",
-                        "filename": filename,
-                        "gcs_url": task_data["gcs_url"],
-                        "message": "Video available via GCS URL"
-                    }
-            
+                    logger.info(f"☁️ Redirecting to GCS URL: {task_data['gcs_url']}")
+                    from fastapi.responses import RedirectResponse
+                    return RedirectResponse(url=task_data["gcs_url"], status_code=302)
+
             raise HTTPException(status_code=404, detail=f"Video not found: {filename}")
             
     except Exception as e:
