@@ -47,6 +47,31 @@ const saveImageToGallery = async (imageUrl) => {
   }
 };
 
+// Helper function to save video to gallery
+const saveVideoToGallery = async (videoUrl) => {
+  if (!videoUrl) {
+    console.log('⚠️ No video URL provided to saveVideoToGallery');
+    return;
+  }
+  
+  try {
+    const existingVideos = await AsyncStorage.getItem('sessionVideos');
+    const videoArray = existingVideos ? JSON.parse(existingVideos) : [];
+    
+    // Avoid duplicates
+    if (!videoArray.includes(videoUrl)) {
+      videoArray.push(videoUrl);
+      await AsyncStorage.setItem('sessionVideos', JSON.stringify(videoArray));
+      console.log('🎬 Video saved to gallery! Total videos:', videoArray.length);
+      console.log('🎥 Video URL:', videoUrl);
+    } else {
+      console.log('🎬 Video already exists in gallery, skipping duplicate');
+    }
+  } catch (error) {
+    console.error('❌ Failed to save video to gallery:', error);
+  }
+};
+
 export default function StoryScreen() {
   const [phase, setPhase] = useState('input'); // 'input' | 'loading' | 'reading' | 'choosing' | 'complete'
   const [userInput, setUserInput] = useState('');
@@ -404,6 +429,12 @@ export default function StoryScreen() {
 
         // Prefer GCS URL for better browser compatibility
         const videoUrl = data.gcs_url || (data.video_url?.startsWith('http') ? data.video_url : `${API_URL}${data.video_url}`);
+        
+        // Save video to gallery - save the relative URL for consistency
+        const relativeVideoUrl = data.video_url || data.gcs_url;
+        if (relativeVideoUrl) {
+          saveVideoToGallery(relativeVideoUrl);
+        }
 
         console.log(`🌐 Opening video in browser: ${videoUrl}`);
 

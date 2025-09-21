@@ -2,18 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -21,6 +22,7 @@ const imageSize = (width - 60) / 2; // Two columns with margins
 
 export default function HistoryScreen() {
   const [sessionImages, setSessionImages] = useState([]);
+  const [sessionVideos, setSessionVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -30,10 +32,11 @@ export default function HistoryScreen() {
     loadSessionImages();
   }, []);
 
-  // Refresh images when user navigates to this tab
+  // Refresh images and videos when user navigates to this tab
   useFocusEffect(
     React.useCallback(() => {
       loadSessionImages();
+      loadSessionVideos();
     }, [])
   );
 
@@ -50,10 +53,21 @@ export default function HistoryScreen() {
     }
   };
 
-  const clearAllImages = () => {
+  const loadSessionVideos = async () => {
+    try {
+      const storedVideos = await AsyncStorage.getItem('sessionVideos');
+      if (storedVideos) {
+        setSessionVideos(JSON.parse(storedVideos));
+      }
+    } catch (error) {
+      console.log('Error loading session videos:', error);
+    }
+  };
+
+  const clearAllMedia = () => {
     Alert.alert(
       '🗑️ Clear Gallery',
-      'Are you sure you want to clear all images from this session?',
+      'Are you sure you want to clear all images and videos from this session?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -62,10 +76,12 @@ export default function HistoryScreen() {
           onPress: async () => {
             try {
               await AsyncStorage.removeItem('sessionImages');
+              await AsyncStorage.removeItem('sessionVideos');
               setSessionImages([]);
-              Alert.alert('✅ Cleared!', 'All images have been cleared from the gallery.');
+              setSessionVideos([]);
+              Alert.alert('✅ Cleared!', 'All media has been cleared from the gallery.');
             } catch (error) {
-              Alert.alert('❌ Error', 'Failed to clear images. Please try again.');
+              Alert.alert('❌ Error', 'Failed to clear media. Please try again.');
             }
           }
         }
@@ -81,6 +97,20 @@ export default function HistoryScreen() {
   const closeModal = () => {
     setModalVisible(false);
     setSelectedImage(null);
+  };
+
+  const openVideo = async (videoUrl) => {
+    try {
+      const fullUrl = `https://bigredhacks25-331813490179.us-east4.run.app${videoUrl}`;
+      console.log('🎬 Opening video in browser:', fullUrl);
+      await WebBrowser.openBrowserAsync(fullUrl, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        controlsColor: '#f35b04',
+      });
+    } catch (error) {
+      console.error('Failed to open video:', error);
+      Alert.alert('Error', 'Failed to open video. Please try again.');
+    }
   };
 
   if (loading) {
@@ -128,21 +158,21 @@ export default function HistoryScreen() {
             <View style={styles.headerContent}>
               <Text style={styles.headerTitle}>Your Story Gallery</Text>
               <Text style={styles.headerSubtitle}>
-                Images generated from your adventures
+                Images and videos from your adventures
               </Text>
             </View>
 
           </View>
 
-          {sessionImages.length === 0 ? (
+          {sessionImages.length === 0 && sessionVideos.length === 0 ? (
             // Empty State
             <View style={styles.emptyContainer}>
               <View style={styles.emptyContent}>
                 <Text style={styles.emptyEmoji}>📸</Text>
-                <Text style={styles.emptyTitle}>No Images Yet!</Text>
+                <Text style={styles.emptyTitle}>No Media Yet!</Text>
                 <Text style={styles.emptyMessage}>
-                  Start creating stories to see your generated images appear here. 
-                  Each story adventure will create beautiful illustrations!
+                  Start creating stories to see your generated images and videos appear here. 
+                  Each story adventure will create beautiful illustrations and videos!
                 </Text>
                 <TouchableOpacity 
                   style={styles.createStoryButton}
@@ -159,37 +189,65 @@ export default function HistoryScreen() {
               </View>
             </View>
           ) : (
-            // Image Gallery
+            // Media Gallery
             <>
               <View style={styles.galleryContainer}>
-                <View style={styles.galleryGrid}>
-                  {sessionImages.map((imageUrl, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.imageCard}
-                      onPress={() => viewImageFullScreen(imageUrl)}
-                      activeOpacity={0.8}
-                    >
-                      <Image
-                        source={{ uri: `https://bigredhacks25-331813490179.us-east4.run.app${imageUrl}` }}
-                        style={styles.image}
-                        resizeMode="cover"
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                {/* Videos Section */}
+                {sessionVideos.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>Videos</Text>
+                    <View style={styles.galleryGrid}>
+                      {sessionVideos.map((videoUrl, index) => (
+                        <TouchableOpacity
+                          key={`video-${index}`}
+                          style={styles.imageCard}
+                          onPress={() => openVideo(videoUrl)}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.videoPlaceholder}>
+                            <Ionicons name="play-circle" size={48} color="#f35b04" />
+                            <Text style={styles.videoText}>Story Video {index + 1}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+                
+                {/* Images Section */}
+                {sessionImages.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>Images</Text>
+                    <View style={styles.galleryGrid}>
+                      {sessionImages.map((imageUrl, index) => (
+                        <TouchableOpacity
+                          key={`image-${index}`}
+                          style={styles.imageCard}
+                          onPress={() => viewImageFullScreen(imageUrl)}
+                          activeOpacity={0.8}
+                        >
+                          <Image
+                            source={{ uri: `https://bigredhacks25-331813490179.us-east4.run.app${imageUrl}` }}
+                            style={styles.image}
+                            resizeMode="cover"
+                          />
+                        </TouchableOpacity>
+                                            ))}
+                    </View>
+                  </>
+                )}
               </View>
 
               {/* Clear All Button */}
               <View style={styles.actionsContainer}>
                 <TouchableOpacity
-                  onPress={clearAllImages}
+                  onPress={clearAllMedia}
                   style={styles.clearButton}
                   activeOpacity={0.8}
                 >
                   <LinearGradient colors={['#ef233c', '#f35b04']} style={styles.clearButtonGradient}>
                     <Ionicons name="trash" size={24} color="white" />
-                    <Text style={styles.clearButtonText}>Clear All Images</Text>
+                    <Text style={styles.clearButtonText}>Clear All Media</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -355,5 +413,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 20,
     padding: 10,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#5d16a6',
+    marginBottom: 15,
+    marginTop: 20,
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(243, 91, 4, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  videoText: {
+    fontSize: 14,
+    color: '#5d16a6',
+    fontWeight: '600',
+    marginTop: 8,
   },
 });
