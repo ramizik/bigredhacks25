@@ -155,12 +155,9 @@ export default function HistoryScreen() {
                       activeOpacity={0.8}
                     >
                       <Image
-                        source={{ uri: imageUrl }}
+                        source={{ uri: `https://bigredhacks25-331813490179.us-east4.run.app${imageUrl}` }}
                         style={styles.image}
                         resizeMode="cover"
-                        onError={() => {
-                          console.log('Failed to load image:', imageUrl);
-                        }}
                       />
                       <View style={styles.imageOverlay}>
                         <Text style={styles.imageNumber}>{index + 1}</Text>
