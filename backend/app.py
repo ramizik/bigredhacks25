@@ -379,19 +379,32 @@ def trigger_background_video_generation(story_id: str):
             # Handle empty story_id by using current story ID or generating one
             actual_story_id = story_id
             if not story_id or story_id == "":
-                story_status = get_story_status()
-                actual_story_id = story_status.get('story_id', '')
-                if not actual_story_id:
+                if AGENT_AVAILABLE:
+                    try:
+                        story_status = get_story_status()
+                        actual_story_id = story_status.get('story_id', '')
+                        if not actual_story_id:
+                            actual_story_id = "current_story"
+                        logger.info(f"⚠️ Empty story_id provided, using: {actual_story_id}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to get story status in background generation: {e}")
+                        actual_story_id = "current_story"
+                else:
                     actual_story_id = "current_story"
-                logger.info(f"⚠️ Empty story_id provided, using: {actual_story_id}")
-            
+
             logger.info(f"🎬 === BACKGROUND VIDEO GENERATION START ===")
             logger.info(f"🎬 Story ID: {actual_story_id}")
-            logger.info(f"📊 Current story state: {get_story_status()}")
-            
+
             # Get story context for logging
-            story_status = get_story_status()
-            logger.info(f"📚 Story context: scenes={story_status.get('scene_count', 0)}, images={story_status.get('images_generated', 0)}")
+            if AGENT_AVAILABLE:
+                try:
+                    story_status = get_story_status()
+                    logger.info(f"📊 Current story state: {story_status}")
+                    logger.info(f"📚 Story context: scenes={story_status.get('scene_count', 0)}, images={story_status.get('images_generated', 0)}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not get story status for logging: {e}")
+            else:
+                logger.info(f"📊 Reading agent not available, skipping story state logging")
             
             result = generate_story_video_async()
             
@@ -670,8 +683,14 @@ async def continue_story(request: StoryChoiceRequest):
     
     try:
         # Validate story ID consistency between frontend and backend session
-        current_story_status = get_story_status()
-        backend_story_id = current_story_status.get('story_id', '')
+        backend_story_id = ''
+        if AGENT_AVAILABLE:
+            try:
+                current_story_status = get_story_status()
+                backend_story_id = current_story_status.get('story_id', '')
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get story status for ID validation: {e}")
+                backend_story_id = ''
 
         if backend_story_id and request.story_id != 'current_story' and request.story_id != backend_story_id:
             logger.warning(f"⚠️ Story ID mismatch! Frontend: {request.story_id}, Backend: {backend_story_id}")
@@ -762,8 +781,15 @@ async def generate_story_video(request: VideoGenerationRequest):
     
     try:
         # Check if story has enough scenes
-        status = get_story_status()
-        logger.info(f"📊 Story status: scenes={status.get('scene_count', 0)}, video_triggered={status.get('video_generation_triggered', False)}")
+        if not AGENT_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Reading Agent system required for video generation")
+
+        try:
+            status = get_story_status()
+            logger.info(f"📊 Story status: scenes={status.get('scene_count', 0)}, video_triggered={status.get('video_generation_triggered', False)}")
+        except Exception as e:
+            logger.error(f"❌ Failed to get story status for video generation: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to get story status: {str(e)}")
         
         if status["scene_count"] < 10 and not request.manual_trigger:
             logger.warning(f"⚠️ Story {request.story_id} not ready for video: {status['scene_count']}/10 scenes")
@@ -858,29 +884,53 @@ async def get_video_status(story_id: str):
     logger.info(f"📊 === VIDEO STATUS REQUEST ===")
     logger.info(f"📊 Story ID requested: {story_id}")
     logger.info(f"📊 Current time: {datetime.now().isoformat()}")
-    
-    # Handle current_story as special case for empty/unspecified story ID
-    if story_id == "current_story" or story_id == "" or story_id == "undefined":
-        story_status = get_story_status()
-        actual_story_id = story_status.get('story_id', '')
-        if actual_story_id:
-            logger.info(f"🔄 Redirecting from '{story_id}' to actual story ID: {actual_story_id}")
-            story_id = actual_story_id
-        else:
-            # If no story ID in status, check for most recent task
-            logger.info(f"🔍 No story ID in status, checking for recent tasks...")
-            if VIDEO_GENERATION_TASKS:
-                # Get the most recent task
-                recent_tasks = sorted(
-                    [(k, v) for k, v in VIDEO_GENERATION_TASKS.items()],
-                    key=lambda x: x[1].get('timestamp', ''),
-                    reverse=True
-                )
-                if recent_tasks:
-                    story_id = recent_tasks[0][0]
-                    logger.info(f"🔄 Using most recent task ID: {story_id}")
-    
+
     try:
+        # Handle current_story as special case for empty/unspecified story ID
+        if story_id == "current_story" or story_id == "" or story_id == "undefined":
+            logger.info(f"🔍 Handling special case story_id: '{story_id}'")
+
+            # Check if reading agent is available before calling get_story_status
+            if not AGENT_AVAILABLE:
+                logger.error(f"❌ Reading agent not available, cannot get story status")
+                return VideoStatusResponse(
+                    status="error",
+                    generation_in_progress=False,
+                    video_url=None,
+                    scenes_included=0,
+                    message="❌ Reading agent system not available"
+                )
+
+            try:
+                story_status = get_story_status()
+                logger.info(f"📊 Retrieved story status: {story_status}")
+                actual_story_id = story_status.get('story_id', '')
+
+                if actual_story_id:
+                    logger.info(f"🔄 Redirecting from '{story_id}' to actual story ID: {actual_story_id}")
+                    story_id = actual_story_id
+                else:
+                    # If no story ID in status, check for most recent task
+                    logger.info(f"🔍 No story ID in status, checking for recent tasks...")
+                    if VIDEO_GENERATION_TASKS:
+                        # Get the most recent task
+                        recent_tasks = sorted(
+                            [(k, v) for k, v in VIDEO_GENERATION_TASKS.items()],
+                            key=lambda x: x[1].get('timestamp', ''),
+                            reverse=True
+                        )
+                        if recent_tasks:
+                            story_id = recent_tasks[0][0]
+                            logger.info(f"🔄 Using most recent task ID: {story_id}")
+            except Exception as story_status_error:
+                logger.error(f"❌ Failed to get story status: {str(story_status_error)}")
+                logger.error(f"🔍 Story status error type: {type(story_status_error).__name__}")
+                logger.error(f"📋 Story status error details: {str(story_status_error)}")
+
+                # Continue with the original story_id if status retrieval fails
+                logger.info(f"⏭️ Continuing with original story_id: {story_id}")
+
+        logger.info(f"📊 Final story_id for processing: {story_id}")
         # Clean up any empty string keys in VIDEO_GENERATION_TASKS
         if '' in VIDEO_GENERATION_TASKS:
             logger.warning("⚠️ Removing empty string key from VIDEO_GENERATION_TASKS")
@@ -903,11 +953,21 @@ async def get_video_status(story_id: str):
             logger.info(f"📊 Task details: {json.dumps(task_summary, default=str)}")
             
             if task_status.get("status") == "processing":
+                # Safely get scene count without direct story_state access
+                scene_count = 0
+                if AGENT_AVAILABLE:
+                    try:
+                        current_status = get_story_status()
+                        scene_count = current_status.get('scene_count', 0)
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not get scene count from story status: {e}")
+                        scene_count = 0
+
                 return VideoStatusResponse(
                     status="processing",
                     generation_in_progress=True,
                     video_url=None,
-                    scenes_included=story_state.scene_count,
+                    scenes_included=scene_count,
                     message="⏳ Video is being generated. Please wait 2-3 minutes."
                 )
             elif task_status.get("status") == "success":
@@ -985,7 +1045,14 @@ async def get_video_status(story_id: str):
         # Fallback: Check filesystem for video files matching story pattern
         import glob
         # Also check for the actual story ID from story state
-        actual_story_id = get_story_status().get('story_id', '')
+        actual_story_id = ''
+        if AGENT_AVAILABLE:
+            try:
+                actual_story_id = get_story_status().get('story_id', '')
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get actual story ID from status: {e}")
+                actual_story_id = ''
+
         video_patterns = [
             f"wonderkid*{story_id}*.mp4",
             f"wonderkid*{actual_story_id}*.mp4" if actual_story_id else None,
@@ -1042,16 +1109,21 @@ async def get_video_status(story_id: str):
             )
         
         # Check if story has a generated video
-        status = get_story_status()
-        logger.info(f"📊 Story status: {status}")
-        if status.get("generated_video"):
-            return VideoStatusResponse(
-                status="completed",
-                generation_in_progress=False,
-                video_url=f"/api/videos/{status['generated_video']}",
-                scenes_included=status.get("scene_count", 0),
-                message="✅ Video available!"
-            )
+        if AGENT_AVAILABLE:
+            try:
+                status = get_story_status()
+                logger.info(f"📊 Story status: {status}")
+                if status.get("generated_video"):
+                    return VideoStatusResponse(
+                        status="completed",
+                        generation_in_progress=False,
+                        video_url=f"/api/videos/{status['generated_video']}",
+                        scenes_included=status.get("scene_count", 0),
+                        message="✅ Video available!"
+                    )
+            except Exception as e:
+                logger.error(f"❌ Failed to get story status for video check: {str(e)}")
+                # Continue to next fallback
         
         # Final fallback: Check if ANY video task is completed (most recent first)
         logger.info(f"📊 No video found for story {story_id}, checking for ANY completed video...")
@@ -1091,11 +1163,22 @@ async def get_video_status(story_id: str):
                 )
         
         logger.info(f"📊 No video found anywhere for story {story_id}")
+
+        # Get scene count safely for the final response
+        scene_count = 0
+        if AGENT_AVAILABLE:
+            try:
+                current_status = get_story_status()
+                scene_count = current_status.get("scene_count", 0)
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get scene count for final response: {e}")
+                scene_count = 0
+
         return VideoStatusResponse(
             status="not_started",
             generation_in_progress=False,
             video_url=None,
-            scenes_included=status.get("scene_count", 0),
+            scenes_included=scene_count,
             message="Video generation not started"
         )
         
