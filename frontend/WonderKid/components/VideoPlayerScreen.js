@@ -64,26 +64,26 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
         console.log('📁 Local URL:', data.video_url || 'None');
         console.log('📋 Full response:', JSON.stringify(data));
         
-        // Always prefer GCS URL for reliability
-        if (data.gcs_url) {
-          console.log('🎯 Using GCS URL directly for video playback');
-          console.log('🌐 Full GCS URL:', data.gcs_url);
-          
-          // Set the video URL directly - GCS URLs are public
-          setVideoUrl(data.gcs_url);
+        // Always prefer GCS URL for reliability, but try local first in Expo Go
+        if (data.video_url) {
+          console.log('🎯 Using local URL for Expo Go compatibility');
+          const fullUrl = data.video_url.startsWith('http')
+            ? data.video_url
+            : `${API_URL}${data.video_url}`;
+          console.log('🌐 Full Local URL:', fullUrl);
+          setVideoUrl(fullUrl);
           setLoading(false);
           setError(null);
-          
+
           if (checkInterval.current) {
             clearInterval(checkInterval.current);
           }
-        } else if (data.video_url) {
-          // Fallback to local URL only if no GCS URL
-          console.log('⚠️ No GCS URL, falling back to local endpoint');
-          const fullUrl = data.video_url.startsWith('http') 
-            ? data.video_url 
-            : `${API_URL}${data.video_url}`;
-          setVideoUrl(fullUrl);
+        } else if (data.gcs_url) {
+          console.log('🎯 Falling back to GCS URL');
+          console.log('🌐 Full GCS URL:', data.gcs_url);
+
+          // Set the video URL directly - GCS URLs are public
+          setVideoUrl(data.gcs_url);
           setLoading(false);
           setError(null);
           
@@ -165,7 +165,9 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
 
   const handleVideoError = (error) => {
     console.error('🎬 Video playback error:', error);
-    setError('Failed to play video. Please try again.');
+    console.error('🎬 Video URL that failed:', videoUrl);
+    console.error('🎬 Error details:', JSON.stringify(error, null, 2));
+    setError(`Failed to play video: ${error?.error || 'Unknown error'}. Please try again.`);
   };
 
   const formatTime = (seconds) => {
