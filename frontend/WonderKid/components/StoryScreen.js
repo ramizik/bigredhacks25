@@ -95,7 +95,7 @@ export default function StoryScreen() {
       fadeAnimation.start();
 
       // Set a single, static loading message
-      setLoadingMessage("Creating your magical story...");
+      setLoadingMessage("Gemini is working on your story. Prepare to read and immerse in story now!");
 
       return () => {
         spinAnimation.stop();
@@ -428,7 +428,7 @@ export default function StoryScreen() {
                 </LinearGradient>
               </View>
               <Text style={styles.headerTitle}>Create Your Story!</Text>
-              <Text style={styles.headerSubtitle}>What adventure would you like to experience today?</Text>
+              <Text style={styles.headerSubtitle}>What adventure would you like to experience today?{'\n\n'}💡 Try: "A brave knight in a magical castle", "A space explorer on Mars", "A mermaid under the sea", or "A detective solving mysteries"</Text>
             </View>
 
             {/* Input Area */}
@@ -461,7 +461,7 @@ export default function StoryScreen() {
                 style={styles.startButtonGradient}
               >
                 <Text style={styles.startButtonText}>
-                  Start My Story
+                  Start Reading Journey
                 </Text>
                 <Ionicons 
                   name="arrow-forward" 
@@ -649,7 +649,6 @@ export default function StoryScreen() {
                 colors={['#a5e6ba', '#9683ec']}
                 style={styles.nextButtonGradient}
               >
-                <Text style={styles.nextButtonEmoji}>🐰</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" />
               </LinearGradient>
             </TouchableOpacity>
