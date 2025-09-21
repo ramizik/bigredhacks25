@@ -829,16 +829,49 @@ async def get_video_status(story_id: str):
         logger.error(f"❌ Video status check failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Video status check failed: {str(e)}")
 
-# Serve generated videos
+# Serve generated videos as base64 data (hackathon demo approach)
 @app.get("/api/videos/{filename}")
 async def get_generated_video(filename: str):
-    logger.info(f"🎬 Serving generated video: {filename}")
+    logger.info(f"🎬 Serving generated video as base64: {filename}")
     
     try:
+        import base64
+        
         # Check if file exists in current directory
         file_path = Path(filename)
         if file_path.exists() and file_path.is_file():
-            # Return FileResponse with proper headers for mobile apps
+            # Read video file and encode as base64
+            with open(file_path, 'rb') as video_file:
+                video_data = video_file.read()
+                video_base64 = base64.b64encode(video_data).decode('utf-8')
+                
+            logger.info(f"✅ Video encoded successfully: {len(video_data)} bytes -> {len(video_base64)} base64 chars")
+            
+            return {
+                "status": "success",
+                "filename": filename,
+                "video_data": video_base64,
+                "mime_type": "video/mp4",
+                "size_bytes": len(video_data),
+                "size_mb": round(len(video_data) / (1024 * 1024), 2)
+            }
+        else:
+            logger.error(f"❌ Video file not found: {filename}")
+            raise HTTPException(status_code=404, detail=f"Video not found: {filename}")
+            
+    except Exception as e:
+        logger.error(f"❌ Video serving failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video serving failed: {str(e)}")
+
+# Alternative: Direct video file serving (for testing)
+@app.get("/api/video-file/{filename}")
+async def get_video_file(filename: str):
+    """Direct file serving for testing purposes"""
+    logger.info(f"🎬 Direct file serving: {filename}")
+    
+    try:
+        file_path = Path(filename)
+        if file_path.exists() and file_path.is_file():
             return FileResponse(
                 str(file_path),
                 media_type="video/mp4",
@@ -847,16 +880,15 @@ async def get_generated_video(filename: str):
                     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                     "Access-Control-Allow-Headers": "Content-Type, Authorization",
                     "Cache-Control": "public, max-age=3600",
-                    "Accept-Ranges": "bytes"  # Enable video seeking
+                    "Accept-Ranges": "bytes"
                 }
             )
         else:
-            logger.error(f"❌ Video file not found: {filename}")
             raise HTTPException(status_code=404, detail=f"Video not found: {filename}")
             
     except Exception as e:
-        logger.error(f"❌ Video serving failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Video serving failed: {str(e)}")
+        logger.error(f"❌ Video file serving failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video file serving failed: {str(e)}")
 
 # Debug endpoint to list all video files
 @app.get("/api/debug/videos")

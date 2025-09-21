@@ -1,3 +1,4 @@
+import { Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -10,13 +11,13 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Video } from 'expo-av';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
 
 const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   const [videoUrl, setVideoUrl] = useState(null);
+  const [videoData, setVideoData] = useState(null); // For base64 video data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [videoStatus, setVideoStatus] = useState('checking');
@@ -47,6 +48,31 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     };
   }, [storyId]);
 
+  const loadVideoData = async (videoUrl) => {
+    try {
+      console.log('🎬 Loading video data from:', videoUrl);
+      
+      // Try to fetch video data from the API
+      const response = await fetch(`${API_URL}${videoUrl}`);
+      const data = await response.json();
+      
+      if (data.status === 'success' && data.video_data) {
+        // Video is served as base64 data
+        console.log('✅ Video data received as base64:', data.size_mb, 'MB');
+        setVideoData(data.video_data);
+        setVideoUrl(`data:${data.mime_type};base64,${data.video_data}`);
+      } else {
+        // Fallback to direct URL
+        console.log('🔄 Using direct video URL');
+        setVideoUrl(`${API_URL}${videoUrl}`);
+      }
+    } catch (err) {
+      console.error('❌ Error loading video data:', err);
+      // Fallback to direct URL
+      setVideoUrl(`${API_URL}${videoUrl}`);
+    }
+  };
+
   const checkVideoStatus = async () => {
     try {
       const response = await fetch(`${API_URL}/api/video-status/${storyId}`);
@@ -57,7 +83,8 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
       setVideoStatus(data.status);
       
       if (data.status === 'completed' && data.video_url) {
-        setVideoUrl(`${API_URL}${data.video_url}`);
+        // Try to load video data (base64 or URL)
+        loadVideoData(data.video_url);
         setLoading(false);
         if (checkInterval.current) {
           clearInterval(checkInterval.current);
@@ -123,7 +150,9 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
 
   const onVideoError = (error) => {
     console.error('❌ Video playback error:', error);
-    setError('Failed to play video');
+    console.error('🔍 Video URL that failed:', videoUrl);
+    console.error('🔍 Video data available:', !!videoData);
+    setError('Failed to play video. Try refreshing or check your connection.');
     setLoading(false);
   };
 
@@ -172,6 +201,12 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
           const renderVideoPlayer = () => (
             <View style={styles.videoContainer}>
                 <Text style={styles.title}>🎬 Your Story Video</Text>
+                
+                {videoData && (
+                  <Text style={styles.videoInfo}>
+                    📊 Video loaded: {videoData.length > 1000000 ? `${Math.round(videoData.length / 1000000)}MB` : `${Math.round(videoData.length / 1000)}KB`} base64 data
+                  </Text>
+                )}
                 
                 <View style={styles.videoWrapper}>
                     <Video
