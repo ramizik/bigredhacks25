@@ -15,7 +15,7 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" backgroundColor="#9683ec" translucent={false} />
+      <StatusBar style="dark" backgroundColor="#9683ec" />
       <LinearGradient
         colors={['#9683ec', '#5d16a6', '#7fdeff']}
         style={styles.gradient}
@@ -35,48 +35,36 @@ export default function App() {
                   iconName = focused ? 'person' : 'person-outline';
                 }
 
-                return <Ionicons name={iconName} size={24} color={color} />;
+                return <Ionicons name={iconName} size={28} color={color} />;
               },
               tabBarActiveTintColor: '#ffffff',
               tabBarInactiveTintColor: '#9683ec',
               tabBarStyle: {
                 backgroundColor: '#ffffff',
-                borderTopLeftRadius: 25,
-                borderTopRightRadius: 25,
-                height: 85,
-                paddingTop: 8,
-                paddingBottom: 20,
-                paddingHorizontal: 15,
-                shadowColor: '#000000',
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                height: 90,
+                paddingTop: 10,
+                paddingBottom: 30,
+                shadowColor: '#000',
                 shadowOffset: {
                   width: 0,
                   height: -4,
                 },
                 shadowOpacity: 0.1,
-                shadowRadius: 10,
+                shadowRadius: 12,
                 elevation: 8,
                 borderTopWidth: 0,
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
               },
               tabBarItemStyle: {
-                borderRadius: 15,
+                borderRadius: 16,
                 marginHorizontal: 8,
                 marginVertical: 4,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                minHeight: 48,
-                height: 48,
-                justifyContent: 'center',
-                alignItems: 'center',
-                flex: 1,
               },
-              tabBarActiveBackgroundColor: '#ef233c',
               tabBarLabelStyle: {
                 display: 'none',
               },
+              tabBarActiveBackgroundColor: '#ef233c',
             })}
           >
             <Tab.Screen 
