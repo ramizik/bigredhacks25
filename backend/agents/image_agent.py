@@ -68,12 +68,6 @@ def initialize_image_client():
             api_key=os.getenv('GOOGLE_API_KEY'),
             http_options={'api_version': 'v1alpha'}
         )
-        print("✅ Image generation client initialized successfully")
-        
-        # Debug: Check what methods are available on client.models
-        print(f"🔍 Available methods on client.models: {dir(client.models)}")
-        print(f"🔍 Client type: {type(client)}")
-        print(f"🔍 Models type: {type(client.models)}")
         
         return client
     except Exception as e:
@@ -103,7 +97,6 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         }
     
     try:
-        print(f"🎨 Generating kid-friendly image for: {story_text[:100]}...")
         
         # Create age-appropriate image prompt following dd project pattern
         enhanced_prompt = f"""
@@ -145,11 +138,9 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         - Use simple, clean backgrounds that don't compete with main subjects
         """
         
-        print(f"🎨 Enhanced prompt created for Imagen 3.0")
         
         # Use the correct API method - logs show generate_images (plural) IS available
         try:
-            print("✅ Using generate_images method (plural) - confirmed available in logs")
             # Generate image using Imagen 3.0 - following dd project pattern exactly
             response = client.models.generate_images(
                 model="imagen-3.0-generate-002",
@@ -201,7 +192,6 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
             image_state.last_generated_image = filename
             image_state.scene_count += 1
             
-            print(f"✅ Kid-friendly image saved: {filename}")
             
             return {
                 "status": "success",

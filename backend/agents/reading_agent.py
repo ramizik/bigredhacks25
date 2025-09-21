@@ -572,7 +572,6 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         new_prompts = continuation_data.get("illustration_prompts", [])
         story_state.illustration_prompts.extend(new_prompts)
         
-        print(f"✅ Story continued successfully")
         
         # Generate immersive scene image for the new story continuation
         image_result = None
@@ -590,7 +589,6 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             Scene Number: {story_state.scene_count + 1}
             """
             
-            print(f"🎨 Generating scene image for story continuation with full context...")
             image_result = generate_kid_friendly_image(
                 story_text=latest_paragraph,
                 scene_context=story_context,
@@ -599,7 +597,6 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             
             if image_result.get("status") == "success":
                 image_file = image_result.get('generated_file')
-                print(f"✅ Continuation scene image generated: {image_file}")
             else:
                 print(f"⚠️ Continuation scene image generation failed: {image_result.get('error')}")
         
