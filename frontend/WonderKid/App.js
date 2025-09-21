@@ -15,9 +15,9 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" backgroundColor="#9683ec" />
+      <StatusBar style="dark" backgroundColor="#f0f9ff" />
       <LinearGradient
-        colors={['#9683ec', '#5d16a6', '#7fdeff']}
+        colors={['#fef3c7', '#fdf2f8', '#dbeafe']}
         style={styles.gradient}
       >
         <NavigationContainer>
@@ -35,19 +35,18 @@ export default function App() {
                   iconName = focused ? 'person' : 'person-outline';
                 }
 
-                return <Ionicons name={iconName} size={32} color={color} />;
+                return <Ionicons name={iconName} size={28} color={color} />;
               },
               tabBarActiveTintColor: '#ffffff',
-              tabBarInactiveTintColor: '#9683ec',
+              tabBarInactiveTintColor: '#8b5cf6',
               tabBarStyle: {
                 backgroundColor: '#ffffff',
-                borderTopLeftRadius: 25,
-                borderTopRightRadius: 25,
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
                 height: 90,
-                paddingTop: 10,
-                paddingBottom: 15,
-                paddingHorizontal: 10,
-                shadowColor: '#000000',
+                paddingTop: 4,
+                paddingBottom: 30,
+                shadowColor: '#000',
                 shadowOffset: {
                   width: 0,
                   height: -4,
@@ -58,22 +57,14 @@ export default function App() {
                 borderTopWidth: 0,
               },
               tabBarItemStyle: {
-                borderRadius: 18,
-                marginHorizontal: 6,
-                marginVertical: 6,
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                minHeight: 60,
-                height: 60,
-                justifyContent: 'center',
-                alignItems: 'center',
-                flex: 1,
+                borderRadius: 16,
+                marginHorizontal: 8,
+                marginVertical: 4,
               },
-              tabBarActiveBackgroundColor: '#ef233c',
               tabBarLabelStyle: {
                 display: 'none',
               },
-              tabBarActiveBackgroundColor: '#ef233c',
+              tabBarActiveBackgroundColor: '#d90429',
             })}
           >
             <Tab.Screen 
@@ -98,8 +89,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#9683ec',
-    paddingTop: 10,
+    backgroundColor: '#f0f9ff',
   },
   gradient: {
     flex: 1,

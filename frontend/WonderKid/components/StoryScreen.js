@@ -79,7 +79,7 @@ export default function StoryScreen() {
     paragraphs: [],
     currentParagraph: 0,
     iteration: 1,
-    maxIterations: 10,
+    maxIterations: 6,
     choices: null,
     imageUrl: null,
     imageGenerated: false,
@@ -208,7 +208,7 @@ export default function StoryScreen() {
         currentParagraph: 0,
         choices: result.choices || [],
         iteration: 1,
-        maxIterations: 10,
+        maxIterations: 6,
         storyTitle: result.story_title,
         mood: result.mood,
         educationalTheme: result.educational_theme,
@@ -326,13 +326,13 @@ export default function StoryScreen() {
         saveImageToGallery(result.image_url);
       }
       
-      // Check for video generation trigger at 10th iteration
-      if (result.video_trigger || storyData.iteration + 1 >= 10) {
+      // Check for video generation trigger at 6th iteration
+      if (result.video_trigger || storyData.iteration + 1 >= 6) {
         console.log('🎬 Video generation triggered!');
         setVideoTriggered(true);
         Alert.alert(
           '🎬 Amazing!',
-          'You\'ve completed 10 scenes! Your story video is being created. This will take 2-3 minutes.',
+          'You\'ve completed 6 scenes! Your story video is being created. This will take 2-3 minutes.',
           [
             {
               text: 'Watch Video',
@@ -378,7 +378,7 @@ export default function StoryScreen() {
       paragraphs: [],
       currentParagraph: 0,
       iteration: 1,
-      maxIterations: 10,
+      maxIterations: 6,
       choices: null,
     });
   };
