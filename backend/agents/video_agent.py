@@ -138,24 +138,12 @@ def generate_video_from_image_seed(prompt: str, seed_image_path: str, story_id: 
         logger.info(f"📸 Using seed image: {seed_image_path}")
         logger.info(f"📏 Seed image size: {os.path.getsize(seed_image_path)} bytes")
         
-        # Enhanced kid-friendly prompt for cinematic quality
-        enhanced_prompt = f"""
-        {prompt}
+        # SHORT, safe prompt following DD's successful approach
+        enhanced_prompt = f"""{prompt}
         
-        CRITICAL: This is a children's story video for ages 5-8.
-        
-        Cinematic direction: 
-        - Smooth, gentle camera movements
-        - Bright, colorful, kid-friendly atmosphere
-        - Magical particle effects and sparkles
-        - Warm, inviting lighting transitions
-        - Fantasy storybook cinematography
-        - 8-10 second sequence
-        - Professional children's film quality
-        - Maintains visual consistency with story illustrations
-        - Safe, positive, uplifting content only
-        - No scary or dark elements
-        """
+Cinematic direction: Smooth camera movement, magical sparkles,
+bright colorful lighting, children's storybook cinematography, 8-second sequence,
+professional animation quality with heartwarming atmosphere"""
         
         logger.info(f"📝 Video prompt length: {len(enhanced_prompt)} characters")
         logger.info(f"🎯 Video prompt preview: {enhanced_prompt[:200]}...")
@@ -333,6 +321,42 @@ def generate_video_from_image_seed(prompt: str, seed_image_path: str, story_id: 
         video_state.video_generation_in_progress = False
         return None
 
+def extract_story_themes(story_scenes: List[Dict], story_theme: str) -> Dict:
+    """Extract safe themes and mood from story scenes following DD's approach"""
+    
+    # Extract basic story elements safely
+    story_keywords = story_theme.lower()
+    scene_count = len(story_scenes)
+    
+    # Determine primary theme category (safe classification)
+    theme_category = "adventure"
+    if any(word in story_keywords for word in ["friend", "help", "kind", "share"]):
+        theme_category = "friendship"
+    elif any(word in story_keywords for word in ["learn", "school", "discover", "explore"]):
+        theme_category = "discovery" 
+    elif any(word in story_keywords for word in ["family", "home", "love", "care"]):
+        theme_category = "family"
+    elif any(word in story_keywords for word in ["magic", "fantasy", "wonder", "dream"]):
+        theme_category = "magic"
+    elif any(word in story_keywords for word in ["nature", "animal", "forest", "garden"]):
+        theme_category = "nature"
+    
+    # Determine overall mood (always positive for kids)
+    story_mood = "joyful"
+    if scene_count >= 8:
+        story_mood = "triumphant"
+    elif any(word in story_keywords for word in ["peaceful", "calm", "gentle"]):
+        story_mood = "peaceful"
+    elif any(word in story_keywords for word in ["exciting", "fun", "play"]):
+        story_mood = "exciting"
+    
+    return {
+        "theme_category": theme_category,
+        "mood": story_mood,
+        "scene_count": scene_count,
+        "safe_theme": story_theme.replace(" ", "_").lower()[:20]  # Truncated safe version
+    }
+
 def generate_comprehensive_story_video(
     story_scenes: List[Dict],
     story_theme: str,
@@ -340,8 +364,8 @@ def generate_comprehensive_story_video(
     age_group: str = "5-8"
 ) -> Dict:
     """
-    Generate comprehensive video after 10 story iterations using all context
-    This follows dd project's epic video generation pattern but adapted for kids
+    Generate comprehensive video after 10 story iterations using DD's safe approach
+    Focus on themes and cinematic quality, not full story content
     """
     
     logger.info(f"🎬 Starting comprehensive video generation for story {story_id}")
@@ -367,15 +391,13 @@ def generate_comprehensive_story_video(
         }
     
     try:
-        logger.info(f"📚 Processing {len(story_scenes)} story scenes for video compilation")
+        logger.info(f"📚 Processing {len(story_scenes)} story scenes for thematic video")
         
-        # Compile complete story narrative
-        full_narrative = " ".join([scene.get("text", "") for scene in story_scenes])
-        all_choices = [choice for scene in story_scenes for choice in scene.get("choices", [])]
+        # Extract safe themes instead of full narrative (DD approach)
+        story_themes = extract_story_themes(story_scenes, story_theme)
         
-        logger.info(f"📝 Compiled narrative length: {len(full_narrative)} characters")
-        logger.info(f"🎯 Total choices made: {len(all_choices)}")
-        logger.info(f"📖 Narrative preview: {full_narrative[:200]}...")
+        logger.info(f"🎨 Extracted themes: {story_themes}")
+        logger.info(f"🎭 Theme category: {story_themes['theme_category']}, Mood: {story_themes['mood']}")
         
         # Select best seed image (most recent or most representative)
         logger.info(f"🔍 Searching for seed image from {len(story_scenes)} scenes...")
@@ -401,46 +423,27 @@ def generate_comprehensive_story_video(
             logger.info(f"🎬 Falling back to direct video generation for story {story_id}")
             return generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
         
-        # Create comprehensive video prompt with full story context
-        video_prompt = f"""
-        CHILDREN'S STORY VIDEO: {story_theme}
+        # Create SHORT, safe video prompt following DD's successful approach
+        video_prompt = f"""EPIC CHILDREN'S {story_themes['theme_category'].upper()}: {story_themes['safe_theme']}
+Ultimate magical {story_themes['theme_category']} conclusion
+Cinematic masterpiece, {story_themes['mood']} crescendo, heartwarming resolution,
+colorful children's storybook animation with maximum wonder and joy"""
         
-        Complete Story Journey (10 scenes):
-        {full_narrative}
+        logger.info(f"📝 Safe video prompt created: {len(video_prompt)} characters (DD approach)")
+        logger.info(f"🎯 Video prompt preview: {video_prompt}")
         
-        Story Choices Made by the Young Reader:
-        {', '.join(all_choices[:10])}
-        
-        Visual Requirements:
-        - Compilation of all 10 story scenes in sequence
-        - Smooth transitions between each story moment
-        - Maintain character consistency throughout
-        - Kid-friendly, bright, colorful animation
-        - Storybook quality for ages {age_group}
-        - Magical, whimsical atmosphere
-        - Educational and inspiring content
-        - 8-10 second cinematic sequence
-        - Show story progression from beginning to current point
-        
-        CRITICAL SAFETY: 
-        - Absolutely no scary, violent, or inappropriate content
-        - Only positive, uplifting, educational themes
-        - Safe for young children to watch
-        """
-        
-        logger.info(f"📝 Video prompt created: {len(video_prompt)} characters")
-        logger.info(f"🎯 Video prompt preview: {video_prompt[:300]}...")
-        
-        # Store metadata
+        # Store metadata with thematic approach
         video_state.story_videos_metadata[story_id] = {
             "story_theme": story_theme,
+            "theme_category": story_themes["theme_category"],
+            "mood": story_themes["mood"],
             "scenes_count": len(story_scenes),
             "generation_started": datetime.now().isoformat(),
             "age_group": age_group,
             "seed_image": seed_image,
             "available_images": available_images,
-            "narrative_length": len(full_narrative),
-            "choices_count": len(all_choices)
+            "prompt_length": len(video_prompt),
+            "approach": "DD_safe_thematic"
         }
         
         logger.info(f"💾 Video metadata stored for story {story_id}")
@@ -467,12 +470,15 @@ def generate_comprehensive_story_video(
                 "generated_file": generated_file,
                 "story_id": story_id,
                 "story_theme": story_theme,
+                "theme_category": story_themes["theme_category"],
+                "mood": story_themes["mood"],
                 "scenes_included": len(story_scenes),
-                "video_type": "comprehensive_story",
+                "video_type": "comprehensive_story_thematic",
                 "age_group": age_group,
                 "seed_image_used": seed_image,
                 "timestamp": datetime.now().isoformat(),
-                "message": "🎬 Your story video is ready! All 10 scenes combined into one magical journey!"
+                "approach": "DD_safe_cinematic",
+                "message": f"🎬 Your {story_themes['theme_category']} story video is ready! A magical {story_themes['mood']} journey!"
             }
         else:
             logger.error(f"❌ Video generation failed for story {story_id}")
@@ -506,7 +512,7 @@ def generate_direct_story_video(
     story_id: str,
     age_group: str = "5-8"
 ) -> Dict:
-    """Generate video directly without image seed as fallback - following dd pattern"""
+    """Generate video directly without image seed as fallback - following DD's safe approach"""
     
     logger.info(f"🎬 Starting direct video generation (no seed image) for story {story_id}")
     
@@ -520,35 +526,22 @@ def generate_direct_story_video(
         }
     
     try:
-        logger.info(f"📚 Processing {len(story_scenes)} story scenes for direct video generation")
+        logger.info(f"📚 Processing {len(story_scenes)} story scenes for direct thematic video")
         
-        # Compile story narrative
-        full_narrative = " ".join([scene.get("text", "") for scene in story_scenes[:10]])
-        logger.info(f"📝 Compiled narrative length: {len(full_narrative)} characters")
-        logger.info(f"📖 Narrative preview: {full_narrative[:200]}...")
+        # Extract safe themes instead of full narrative (DD approach)
+        story_themes = extract_story_themes(story_scenes, story_theme)
         
-        enhanced_prompt = f"""
-        CHILDREN'S ANIMATED STORY: {story_theme}
+        logger.info(f"🎨 Direct video themes: {story_themes}")
+        logger.info(f"🎭 Direct theme category: {story_themes['theme_category']}, Mood: {story_themes['mood']}")
         
-        Story Content (10 magical scenes):
-        {full_narrative}
+        # Create SHORT, safe prompt for direct video (DD approach)
+        enhanced_prompt = f"""WONDERFUL CHILDREN'S {story_themes['theme_category'].upper()}: {story_themes['safe_theme']}
+Magical {story_themes['theme_category']} adventure finale
+Colorful storybook animation, {story_themes['mood']} atmosphere, heartwarming conclusion,
+bright children's book illustration style with wonder and delight"""
         
-        Animation Style:
-        - Colorful children's book illustration come to life
-        - Pixar-quality kid-friendly animation
-        - Bright, vibrant colors with warm lighting
-        - Cute, friendly characters
-        - Magical storybook atmosphere
-        - Smooth scene transitions
-        - Age-appropriate for {age_group}
-        - Educational and fun
-        - 8-10 second sequence showing story highlights
-        
-        SAFETY: Kid-friendly content only, no scary elements
-        """
-        
-        logger.info(f"📝 Direct video prompt created: {len(enhanced_prompt)} characters")
-        logger.info(f"🎯 Prompt preview: {enhanced_prompt[:300]}...")
+        logger.info(f"📝 Safe direct video prompt created: {len(enhanced_prompt)} characters (DD approach)")
+        logger.info(f"🎯 Direct video prompt: {enhanced_prompt}")
         
         config = types.GenerateVideosConfig(
             # Removed person_generation parameter - using default for kids content  
@@ -658,8 +651,11 @@ def generate_direct_story_video(
                 "status": "success",
                 "generated_file": filename,
                 "story_id": story_id,
-                "video_type": "direct_generation",
-                "message": "🎬 Story video created without seed image!"
+                "video_type": "direct_generation_thematic",
+                "approach": "DD_safe_direct",
+                "theme_category": story_themes["theme_category"],
+                "mood": story_themes["mood"],
+                "message": f"🎬 {story_themes['theme_category'].title()} story video created! A {story_themes['mood']} adventure!"
             }
         else:
             logger.error(f"❌ No videos in direct video operation response for story {story_id}")
@@ -712,7 +708,10 @@ def generate_direct_story_video(
                                         "generated_file": filename,
                                         "story_id": story_id,
                                         "video_type": "direct_generation_alternative",
-                                        "message": "🎬 Story video created via alternative access!"
+                                        "approach": "DD_safe_alternative",
+                                        "theme_category": story_themes["theme_category"],
+                                        "mood": story_themes["mood"],
+                                        "message": f"🎬 {story_themes['theme_category'].title()} story video created via alternative access! A {story_themes['mood']} adventure!"
                                     }
             except Exception as alt_error:
                 logger.error(f"❌ Alternative direct response access failed: {alt_error}")
