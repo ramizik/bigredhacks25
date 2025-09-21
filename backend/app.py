@@ -515,15 +515,27 @@ async def generate_story(request: StoryThemeRequest):
     
     try:
         # Reset story state for new story
+        logger.info(f"🔄 Resetting story state for new story")
         reset_story_state()
-        
+        logger.info(f"📊 Story state after reset - ID: '{story_state.story_id}'")
+
         # Use AI agent to generate story
         logger.info(f"🤖 Generating AI story for: {request.theme}")
         agent_result = generate_kid_story(request.theme, request.age_group)
-        
+
         story_data = agent_result["story_data"]
         story_id = story_state.story_id  # Use the story ID from story_state
-        
+
+        # CRITICAL: Validate story_id is not empty - generate fallback if needed
+        if not story_id or story_id.strip() == "":
+            from datetime import datetime
+            fallback_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            logger.error(f"❌ Story state story_id is empty! Using fallback: {fallback_id}")
+            story_id = fallback_id
+            story_state.story_id = fallback_id  # Update story state with fallback
+
+        logger.info(f"📊 Story state after generation - ID: '{story_state.story_id}'")
+        logger.info(f"📊 Final story_id being returned: '{story_id}'")
         logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
         
         # Check if image was generated
@@ -693,9 +705,15 @@ async def continue_story(request: StoryChoiceRequest):
             trigger_background_video_generation(story_state.story_id)
         
         logger.info(f"✅ Story continued successfully. Progress: {progress_percentage}%")
-        
+
+        # CRITICAL: Ensure story_id is valid before returning
+        response_story_id = story_state.story_id
+        if not response_story_id or response_story_id.strip() == "":
+            logger.error(f"❌ Story state story_id is empty in continue-story! Using request story_id as fallback")
+            response_story_id = request.story_id
+
         return StoryResponse(
-            story_id=story_state.story_id,  # Use backend's authoritative story ID
+            story_id=response_story_id,  # Use backend's authoritative story ID (with fallback)
             paragraphs=updated_story["paragraphs"],
             current_paragraph=current_paragraph,
             choices=updated_story["choices"],

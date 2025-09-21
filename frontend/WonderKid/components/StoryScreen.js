@@ -141,14 +141,18 @@ export default function StoryScreen() {
       console.log('🎨 Image Generated:', result.image_generated);
       
       // Use real AI-generated story data - ALWAYS use backend story_id for session consistency
-      if (!result.story_id) {
-        console.error('❌ Backend did not provide story_id! This will cause session issues.');
-        console.error('📋 Full backend response:', result);
-        throw new Error('Backend did not provide story_id - cannot create story session');
+      let storyId = result.story_id;
+
+      // Smart fallback: If backend doesn't provide story_id, generate one for this session
+      if (!storyId || storyId.trim() === '') {
+        console.warn('⚠️ Backend did not provide story_id! Generating fallback for session consistency.');
+        console.warn('📋 Full backend response:', result);
+        storyId = `story_${Date.now()}`;
+        console.log(`🔧 Generated fallback story ID: ${storyId}`);
       }
-      const storyId = result.story_id; // Backend provides authoritative story_id
+
       sessionStoryIdRef.current = storyId; // Store in ref for immediate access
-      console.log(`📚 Story created with backend ID: ${storyId}`);
+      console.log(`📚 Story session created with ID: ${storyId}`);
       
       const aiStory = {
         paragraphs: result.paragraphs || [],

@@ -226,9 +226,13 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
         logger.info(f"📚 Starting new story generation - Theme: {theme}, Age: {age_group}")
         
         # Generate unique story ID
-        story_state.story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        generated_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        story_state.story_id = generated_id
         story_state.theme = theme
         story_state.age_group = age_group
+
+        logger.info(f"📊 Generated story ID: '{generated_id}'")
+        logger.info(f"📊 Story state ID after assignment: '{story_state.story_id}'")
         
         # Create age-appropriate prompt following dd project pattern
         system_prompt = f"""You are a professional children's book author creating stories for ages {age_group}.
