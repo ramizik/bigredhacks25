@@ -878,7 +878,7 @@ async def test_gcs_videos():
     return result
 
 # Get video generation status
-@app.get("/api/video-status/{story_id}", response_model=VideoStatusResponse)
+@app.get("/api/video-status/{story_id}")
 async def get_video_status(story_id: str):
     """Check the status of video generation for a story"""
     logger.info(f"📊 === VIDEO STATUS REQUEST ===")
@@ -887,6 +887,7 @@ async def get_video_status(story_id: str):
 
     try:
         logger.info(f"📊 Starting video status check for: {story_id}")
+        logger.info(f"📊 Available video tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
 
         # Handle current_story as special case for empty/unspecified story ID
         if story_id == "current_story" or story_id == "" or story_id == "undefined":
@@ -895,13 +896,13 @@ async def get_video_status(story_id: str):
             # Check if reading agent is available before calling get_story_status
             if not AGENT_AVAILABLE:
                 logger.error(f"❌ Reading agent not available, cannot get story status")
-                return VideoStatusResponse(
-                    status="error",
-                    generation_in_progress=False,
-                    video_url=None,
-                    scenes_included=0,
-                    message="❌ Reading agent system not available"
-                )
+                return {
+                    "status": "error",
+                    "generation_in_progress": False,
+                    "video_url": None,
+                    "scenes_included": 0,
+                    "message": "❌ Reading agent system not available"
+                }
 
             try:
                 story_status = get_story_status()
@@ -965,13 +966,13 @@ async def get_video_status(story_id: str):
                         logger.warning(f"⚠️ Could not get scene count from story status: {e}")
                         scene_count = 0
 
-                return VideoStatusResponse(
-                    status="processing",
-                    generation_in_progress=True,
-                    video_url=None,
-                    scenes_included=scene_count,
-                    message="⏳ Video is being generated. Please wait 2-3 minutes."
-                )
+                return {
+                    "status": "processing",
+                    "generation_in_progress": True,
+                    "video_url": None,
+                    "scenes_included": scene_count,
+                    "message": "⏳ Video is being generated. Please wait 2-3 minutes."
+                }
             elif task_status.get("status") == "success":
                 video_file = task_status.get("generated_file")
                 gcs_url = task_status.get("gcs_url")
@@ -979,23 +980,23 @@ async def get_video_status(story_id: str):
                 if gcs_url:
                     logger.info(f"☁️ GCS URL available: {gcs_url}")
                 
-                return VideoStatusResponse(
-                    status="completed",
-                    generation_in_progress=False,
-                    video_url=f"/api/videos/{video_file}" if video_file else None,
-                    scenes_included=task_status.get("scenes_included", 10),
-                    message="✅ Video generation completed!",
-                    gcs_url=gcs_url  # Include GCS URL if available
-                )
+                return {
+                    "status": "completed",
+                    "generation_in_progress": False,
+                    "video_url": f"/api/videos/{video_file}" if video_file else None,
+                    "scenes_included": task_status.get("scenes_included", 10),
+                    "message": "✅ Video generation completed!",
+                    "gcs_url": gcs_url  # Include GCS URL if available
+                }
             else:
                 logger.warning(f"⚠️ Task status not success: {task_status}")
-                return VideoStatusResponse(
-                    status="error",
-                    generation_in_progress=False,
-                    video_url=None,
-                    scenes_included=0,
-                    message=f"❌ Video generation failed: {task_status.get('error', 'Unknown error')}"
-                )
+                return {
+                    "status": "error",
+                    "generation_in_progress": False,
+                    "video_url": None,
+                    "scenes_included": 0,
+                    "message": f"❌ Video generation failed: {task_status.get('error', 'Unknown error')}"
+                }
         
         logger.info(f"📊 No task found for {story_id}, checking alternative IDs and filesystem...")
         
@@ -1035,14 +1036,14 @@ async def get_video_status(story_id: str):
                     # Prefer local API endpoint but include GCS URL as backup
                     video_url = f"/api/videos/{video_file}" if video_file else None
                     
-                    return VideoStatusResponse(
-                        status="completed",
-                        generation_in_progress=False,
-                        video_url=video_url,
-                        scenes_included=task_status.get("scenes_included", 10),
-                        message="✅ Video generation completed!",
-                        gcs_url=gcs_url  # Include GCS URL if available
-                    )
+                    return {
+                        "status": "completed",
+                        "generation_in_progress": False,
+                        "video_url": video_url,
+                        "scenes_included": task_status.get("scenes_included", 10),
+                        "message": "✅ Video generation completed!",
+                        "gcs_url": gcs_url  # Include GCS URL if available
+                    }
         
         # Fallback: Check filesystem for video files matching story pattern
         import glob
@@ -1090,25 +1091,25 @@ async def get_video_status(story_id: str):
                     
                 if gcs_url:
                     logger.info(f"☁️ GCS URL for found video: {gcs_url}")
-                    return VideoStatusResponse(
-                        status="completed",
-                        generation_in_progress=False,
-                        video_url=None,  # Don't use local serving
-                        scenes_included=10,
-                        message="✅ Video found and ready to play!",
-                        gcs_url=gcs_url
-                    )
+                    return {
+                        "status": "completed",
+                        "generation_in_progress": False,
+                        "video_url": None,  # Don't use local serving
+                        "scenes_included": 10,
+                        "message": "✅ Video found and ready to play!",
+                        "gcs_url": gcs_url
+                    }
             except Exception as e:
                 logger.error(f"❌ Failed to get GCS URL for found video: {str(e)}")
             
             # Fallback if GCS fails
-            return VideoStatusResponse(
-                status="completed",
-                generation_in_progress=False,
-                video_url=f"/api/videos/{video_filename}",
-                scenes_included=10,
-                message="✅ Video found locally!"
-            )
+            return {
+                "status": "completed",
+                "generation_in_progress": False,
+                "video_url": f"/api/videos/{video_filename}",
+                "scenes_included": 10,
+                "message": "✅ Video found locally!"
+            }
         
         # Check if story has a generated video
         if AGENT_AVAILABLE:
@@ -1116,13 +1117,13 @@ async def get_video_status(story_id: str):
                 status = get_story_status()
                 logger.info(f"📊 Story status: {status}")
                 if status.get("generated_video"):
-                    return VideoStatusResponse(
-                        status="completed",
-                        generation_in_progress=False,
-                        video_url=f"/api/videos/{status['generated_video']}",
-                        scenes_included=status.get("scene_count", 0),
-                        message="✅ Video available!"
-                    )
+                    return {
+                        "status": "completed",
+                        "generation_in_progress": False,
+                        "video_url": f"/api/videos/{status['generated_video']}",
+                        "scenes_included": status.get("scene_count", 0),
+                        "message": "✅ Video available!"
+                    }
             except Exception as e:
                 logger.error(f"❌ Failed to get story status for video check: {str(e)}")
                 # Continue to next fallback
@@ -1146,23 +1147,23 @@ async def get_video_status(story_id: str):
             # Prioritize GCS URL over local file
             if gcs_url:
                 logger.info(f"☁️ Returning GCS URL for most recent video: {gcs_url}")
-                return VideoStatusResponse(
-                    status="completed",
-                    generation_in_progress=False,
-                    video_url=None,  # Don't use local URL if GCS is available
-                    scenes_included=task_data.get("scenes_included", 10),
-                    message="✅ Video ready from cloud storage!",
-                    gcs_url=gcs_url
-                )
+                return {
+                    "status": "completed",
+                    "generation_in_progress": False,
+                    "video_url": None,  # Don't use local URL if GCS is available
+                    "scenes_included": task_data.get("scenes_included", 10),
+                    "message": "✅ Video ready from cloud storage!",
+                    "gcs_url": gcs_url
+                }
             elif video_file:
-                return VideoStatusResponse(
-                    status="completed",
-                    generation_in_progress=False,
-                    video_url=f"/api/videos/{video_file}",
-                    scenes_included=task_data.get("scenes_included", 10),
-                    message="✅ Video found from recent generation!",
-                    gcs_url=None
-                )
+                return {
+                    "status": "completed",
+                    "generation_in_progress": False,
+                    "video_url": f"/api/videos/{video_file}",
+                    "scenes_included": task_data.get("scenes_included", 10),
+                    "message": "✅ Video found from recent generation!",
+                    "gcs_url": None
+                }
         
         logger.info(f"📊 No video found anywhere for story {story_id}")
 
@@ -1176,13 +1177,13 @@ async def get_video_status(story_id: str):
                 logger.warning(f"⚠️ Could not get scene count for final response: {e}")
                 scene_count = 0
 
-        return VideoStatusResponse(
-            status="not_started",
-            generation_in_progress=False,
-            video_url=None,
-            scenes_included=scene_count,
-            message="Video generation not started"
-        )
+        return {
+            "status": "not_started",
+            "generation_in_progress": False,
+            "video_url": None,
+            "scenes_included": scene_count,
+            "message": "Video generation not started"
+        }
         
     except Exception as e:
         logger.error(f"❌ Video status check failed: {str(e)}")
@@ -1190,13 +1191,13 @@ async def get_video_status(story_id: str):
         logger.error(f"📋 Exception details: {str(e)}")
 
         # Return proper JSON error response instead of raising HTTPException
-        return VideoStatusResponse(
-            status="error",
-            generation_in_progress=False,
-            video_url=None,
-            scenes_included=0,
-            message=f"❌ Video status check failed: {str(e)}"
-        )
+        return {
+            "status": "error",
+            "generation_in_progress": False,
+            "video_url": None,
+            "scenes_included": 0,
+            "message": f"❌ Video status check failed: {str(e)}"
+        }
 
 # Serve generated videos as base64 data (hackathon demo approach)
 @app.get("/api/videos/{filename}")
