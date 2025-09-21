@@ -1108,7 +1108,7 @@ async def get_video_status(story_id: str):
                     return {
                         "status": "completed",
                         "generation_in_progress": False,
-                        "video_url": None,  # Don't use local serving
+                        "video_url": f"/api/videos/{video_filename}",  # Provide local URL for Expo compatibility
                         "scenes_included": 10,
                         "message": "✅ Video found and ready to play!",
                         "gcs_url": gcs_url
