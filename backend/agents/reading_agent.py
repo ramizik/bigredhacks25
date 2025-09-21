@@ -388,26 +388,41 @@ def generate_kid_story(theme: str, age_group: str = "5-8") -> Dict:
         logger.info(f"📊 Story state ID after assignment: '{story_state.story_id}'")
         
         # Create age-appropriate prompt following dd project pattern
-        system_prompt = f"""You are a professional children's book author creating stories for ages {age_group}.
+        system_prompt = f"""You are a professional children's book author creating personalized stories for ages {age_group}.
 
-REQUIREMENTS:
-- Create a magical, positive story about: {theme}
-- Use simple, age-appropriate language
+USER'S SPECIFIC REQUEST: "{theme}"
+
+CORE REQUIREMENTS:
+- Build the ENTIRE story around the user's specific input: "{theme}"
+- Extract key elements from their request (characters, settings, themes, moods they mentioned)
+- Make the story deeply connected to what the user specifically asked for
+- Use the user's exact words and concepts as the foundation of your story
+- If they mentioned specific characters, places, or scenarios, center the story around those
+- Create a magical, positive story that directly addresses their interests
+- Use simple, age-appropriate language that feels personal to their request
 - Include 3-4 short paragraphs (2-3 sentences each)
 - Make it engaging but not scary
-- Include friendly characters
-- End with 3 choices for what happens next
-- Make it educational and fun
+- Include friendly characters that relate to their input
+- End with 3 choices that continue their specific theme/scenario
+- Make it educational and fun while staying true to their vision
+
+PERSONALIZATION FOCUS:
+- If they mentioned a character type (knight, princess, astronaut), make that the main character
+- If they mentioned a setting (castle, space, ocean), make that the primary location  
+- If they mentioned an activity (adventure, solving mysteries), make that the main plot
+- If they mentioned emotions or moods, weave those throughout the story
+- Reference their specific words and ideas multiple times throughout the narrative
+- Make them feel like this story was created just for them based on exactly what they wanted
 
 IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
 
 {{
-    "story_title": "title here",
-    "paragraphs": ["paragraph 1", "paragraph 2", "paragraph 3"],
-    "choices": ["choice 1", "choice 2", "choice 3"],
-    "illustration_prompts": ["scene 1 description", "scene 2 description", "scene 3 description"],
-    "mood": "adventure",
-    "educational_theme": "what kids learn from this story"
+    "story_title": "title that directly reflects user's request",
+    "paragraphs": ["paragraph 1 based on user input", "paragraph 2 continuing their theme", "paragraph 3 developing their specific ideas"],
+    "choices": ["choice 1 related to their request", "choice 2 expanding their theme", "choice 3 continuing their specific scenario"],
+    "illustration_prompts": ["scene 1 showing user's specific elements", "scene 2 with their characters/setting", "scene 3 featuring their requested theme"],
+    "mood": "mood that matches user's input tone",
+    "educational_theme": "what kids learn that relates to their specific interests"
 }}"""
         
         # Generate story using client - following dd project pattern
@@ -510,28 +525,40 @@ def continue_story_with_choice(choice: str) -> Dict:
         story_state.user_choices_made.append(choice)
         
         # Create continuation prompt
-        system_prompt = f"""You are continuing a children's story for ages {story_state.age_group}.
+        system_prompt = f"""You are continuing a personalized children's story for ages {story_state.age_group}.
 
 STORY CONTEXT:
-- Theme: {story_state.theme}
+- Original User Request: {story_state.theme}
 - Previous paragraphs: {' '.join(story_state.paragraphs)}
 - User chose: {choice}
+- User's previous choices: {', '.join(story_state.user_choices_made)}
 
-REQUIREMENTS:
-- Continue the story based on the user's choice
-- Add 2-3 new paragraphs
+PERSONALIZATION REQUIREMENTS:
+- Stay deeply connected to the user's original request: "{story_state.theme}"
+- Continue building on the specific elements they mentioned in their initial input
+- Reference their original characters, settings, or themes from their request
+- Make the story feel like it's developing exactly what they asked for
+- Continue the story based on the user's choice while maintaining their original vision
+- Add 2-3 new paragraphs that expand on their specific interests
 - Keep it age-appropriate and positive
-- Create 3 new choices for what happens next
-- Make it engaging and educational
+- Create 3 new choices that further explore their original theme/scenario
+- Make it engaging and educational while staying true to what they wanted
+- Ensure continuity with the personalized elements established in earlier parts
+
+CONSISTENCY FOCUS:
+- Maintain the same characters, settings, and themes from the user's original request
+- Build upon the specific world and scenario they described
+- Keep the story feeling personal and tailored to their exact interests
+- Reference elements from their original input throughout the continuation
 
 IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
 
 {{
-    "continuation_paragraphs": ["new paragraph 1", "new paragraph 2"],
-    "choices": ["new choice 1", "new choice 2", "new choice 3"],
-    "illustration_prompts": ["new scene description"],
+    "continuation_paragraphs": ["new paragraph 1 continuing user's theme", "new paragraph 2 developing their specific scenario"],
+    "choices": ["new choice 1 related to their original request", "new choice 2 expanding their theme", "new choice 3 continuing their personalized story"],
+    "illustration_prompts": ["new scene description featuring user's specific elements"],
     "story_complete": false,
-    "educational_message": "what kids learn from this part"
+    "educational_message": "what kids learn that connects to their original interests"
 }}"""
         
         response = client.models.generate_content(

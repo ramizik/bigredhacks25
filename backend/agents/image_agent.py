@@ -118,16 +118,18 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         - Clear, simple composition for easy understanding
         - Consistent with previous story illustrations if any
         
-        CRITICAL VISUAL REQUIREMENTS - NO TEXT ALLOWED:
-        - ABSOLUTELY NO TEXT, WORDS, OR LETTERS anywhere on the image
-        - NO speech bubbles, thought bubbles, or dialogue boxes
-        - NO captions, subtitles, or written descriptions
-        - NO text overlays, labels, or annotations
-        - NO signs, banners, or written messages
-        - NO book titles, story titles, or written content
-        - NO numbers, symbols, or written characters
-        - This must be a PURE VISUAL ILLUSTRATION with ZERO text elements
-        - If the story mentions text, represent it visually without showing actual words
+        ABSOLUTELY CRITICAL - ZERO TEXT POLICY:
+        - DO NOT generate ANY text, words, letters, or written content ANYWHERE in the image
+        - DO NOT include speech bubbles, thought bubbles, or dialogue elements
+        - DO NOT add captions, subtitles, labels, or written descriptions
+        - DO NOT show signs, banners, posters, or any written messages
+        - DO NOT display book titles, story titles, or any textual content
+        - DO NOT include numbers, symbols, alphabets, or written characters of any kind
+        - DO NOT generate handwriting, printed text, or any form of written language
+        - This is a PURE VISUAL-ONLY illustration with ABSOLUTELY NO textual elements
+        - If the story mentions books, signs, or written content, show them as blank objects or with abstract patterns instead of actual text
+        - Focus entirely on visual storytelling through images, colors, expressions, and scenes
+        - Any violation of this no-text rule will result in an unusable image
         
         MOBILE-OPTIMIZED DESIGN:
         - Large, clear details that are easily visible on small screens
@@ -136,6 +138,13 @@ def generate_kid_friendly_image(story_text: str, scene_context: str = "", age_gr
         - Avoid tiny details that would be hard to see on phone screens
         - Focus on main characters and key visual elements
         - Use simple, clean backgrounds that don't compete with main subjects
+        
+        VISUAL-ONLY STORYTELLING:
+        - Express emotions through character facial expressions and body language
+        - Show action through dynamic poses and movement
+        - Create atmosphere through lighting, colors, and environmental details
+        - Use visual symbols and metaphors instead of any written elements
+        - Make the story clear through pure visual narrative without any text dependency
         """
         
         
