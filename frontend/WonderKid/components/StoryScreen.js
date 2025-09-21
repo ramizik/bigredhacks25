@@ -225,8 +225,8 @@ export default function StoryScreen() {
       
       // Update story data with AI-generated continuation
       // Keep consistent story ID
-      const currentStoryId = result.story_id || prev.storyId;
-      console.log(`📖 Continuing story with ID: ${currentStoryId}, iteration: ${prev.iteration + 1}`);
+      const currentStoryId = result.story_id || storyData.storyId;
+      console.log(`📖 Continuing story with ID: ${currentStoryId}, iteration: ${storyData.iteration + 1}`);
       
       setStoryData(prev => ({
         ...prev,
