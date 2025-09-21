@@ -13,5 +13,8 @@ pydantic==2.10.3
 python-multipart==0.0.12
 aiofiles==24.1.0
 
+# Google Cloud Storage for video persistence
+google-cloud-storage==2.10.0
+
 # Force compatible anyio version
 anyio==4.8.0

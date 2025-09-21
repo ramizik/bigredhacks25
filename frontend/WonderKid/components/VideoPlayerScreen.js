@@ -48,59 +48,85 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     };
   }, [storyId]);
 
-  const loadVideoData = async (videoUrl) => {
+  const loadVideoData = async (videoUrl, gcsUrl = null) => {
     try {
       console.log('🎬 === LOADING VIDEO DATA ===');
       console.log('🎬 Video URL from status:', videoUrl);
-      console.log('🎬 Full URL to fetch:', `${API_URL}${videoUrl}`);
+      console.log('☁️ GCS URL backup:', gcsUrl);
+      console.log('🎬 Full URL to fetch:', videoUrl ? `${API_URL}${videoUrl}` : 'No local URL');
       
-      // Try to fetch video data from the API
-      const response = await fetch(`${API_URL}${videoUrl}`);
-      console.log('📡 Video fetch response status:', response.status, response.ok);
-      console.log('📡 Response headers:', response.headers);
-      
-      if (response.ok) {
-        const contentType = response.headers.get('content-type');
-        console.log('📡 Content-Type:', contentType);
+      // If we have a video URL, try to fetch from the API first
+      if (videoUrl) {
+        const response = await fetch(`${API_URL}${videoUrl}`);
+        console.log('📡 Video fetch response status:', response.status, response.ok);
+        console.log('📡 Response headers:', response.headers);
         
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          console.log('📊 JSON response received:', {
-            status: data.status,
-            has_video_data: !!data.video_data,
-            size_mb: data.size_mb,
-            filename: data.filename
-          });
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          console.log('📡 Content-Type:', contentType);
           
-          if (data.status === 'success' && data.video_data) {
-            // Video is served as base64 data
-            console.log('✅ Video data received as base64:', data.size_mb, 'MB');
-            console.log('🎬 Base64 data length:', data.video_data.length);
-            setVideoData(data.video_data);
-            const videoDataUrl = `data:${data.mime_type};base64,${data.video_data}`;
-            console.log('🎬 Setting video URL as data URL, first 100 chars:', videoDataUrl.substring(0, 100));
-            setVideoUrl(videoDataUrl);
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            console.log('📊 JSON response received:', {
+              status: data.status,
+              has_video_data: !!data.video_data,
+              has_gcs_url: !!data.gcs_url,
+              size_mb: data.size_mb,
+              filename: data.filename
+            });
+            
+            if (data.status === 'success' && data.video_data) {
+              // Video is served as base64 data
+              console.log('✅ Video data received as base64:', data.size_mb, 'MB');
+              console.log('🎬 Base64 data length:', data.video_data.length);
+              setVideoData(data.video_data);
+              const videoDataUrl = `data:${data.mime_type};base64,${data.video_data}`;
+              console.log('🎬 Setting video URL as data URL, first 100 chars:', videoDataUrl.substring(0, 100));
+              setVideoUrl(videoDataUrl);
+              return; // Success - exit early
+            } else if (data.gcs_url) {
+              console.log('☁️ Using GCS URL from response:', data.gcs_url);
+              setVideoUrl(data.gcs_url);
+              return; // Success - exit early
+            } else {
+              console.log('❌ JSON response missing video data and GCS URL');
+              // Fallback to direct URL
+              console.log('🔄 Using direct video URL');
+              setVideoUrl(`${API_URL}${videoUrl}`);
+            }
           } else {
-            console.log('❌ JSON response missing video data');
-            // Fallback to direct URL
-            console.log('🔄 Using direct video URL');
+            // Not JSON, assume it's the video file directly
+            console.log('🔄 Response is not JSON, using direct URL');
             setVideoUrl(`${API_URL}${videoUrl}`);
           }
         } else {
-          // Not JSON, assume it's the video file directly
-          console.log('🔄 Response is not JSON, using direct URL');
-          setVideoUrl(`${API_URL}${videoUrl}`);
+          console.error('❌ Video fetch failed with status:', response.status);
+          throw new Error(`HTTP ${response.status}`);
         }
+      } else if (gcsUrl) {
+        // No local URL, but we have GCS URL
+        console.log('☁️ No local URL available, using GCS URL directly:', gcsUrl);
+        setVideoUrl(gcsUrl);
+        return;
       } else {
-        console.error('❌ Video fetch failed with status:', response.status);
-        throw new Error(`HTTP ${response.status}`);
+        console.error('❌ No video URL available');
+        throw new Error('No video URL provided');
       }
     } catch (err) {
       console.error('❌ Error loading video data:', err);
       console.error('Stack:', err.stack);
-      // Fallback to direct URL
-      console.log('🔄 Fallback: Using direct video URL');
-      setVideoUrl(`${API_URL}${videoUrl}`);
+      
+      // Try GCS URL as final fallback
+      if (gcsUrl) {
+        console.log('☁️ Final fallback: Using GCS URL directly:', gcsUrl);
+        setVideoUrl(gcsUrl);
+      } else if (videoUrl) {
+        console.log('🔄 Fallback: Using direct video URL');
+        setVideoUrl(`${API_URL}${videoUrl}`);
+      } else {
+        console.error('❌ No fallback options available');
+        setError('Failed to load video');
+      }
     }
   };
 
@@ -115,10 +141,15 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
       
       setVideoStatus(data.status);
       
-      if (data.status === 'completed' && data.video_url) {
+      if (data.status === 'completed' && (data.video_url || data.gcs_url)) {
         console.log('✅ Video completed, URL:', data.video_url);
+        if (data.gcs_url) {
+          console.log('☁️ GCS URL available:', data.gcs_url);
+        }
+        
         // Try to load video data (base64 or URL)
-        await loadVideoData(data.video_url);
+        // Pass GCS URL as fallback option
+        await loadVideoData(data.video_url, data.gcs_url);
         setLoading(false);
         if (checkInterval.current) {
           clearInterval(checkInterval.current);

@@ -349,6 +349,7 @@ class VideoStatusResponse(BaseModel):
     video_url: Optional[str] = None
     scenes_included: int = 0
     message: str = ""
+    gcs_url: Optional[str] = None  # Direct GCS URL for video persistence
 
 class UserProgressRequest(BaseModel):
     user_id: str
@@ -387,6 +388,19 @@ def trigger_background_video_generation(story_id: str):
             
             # Ensure story_id is included in the result
             result['requested_story_id'] = story_id
+            
+            # Check if video was uploaded to GCS and add the URL
+            if result.get("status") == "success" and result.get("generated_file"):
+                try:
+                    from gcs_helper import get_gcs_manager
+                    gcs = get_gcs_manager()
+                    gcs_url = gcs.get_video_url(result["generated_file"])
+                    if gcs_url:
+                        result['gcs_url'] = gcs_url
+                        logger.info(f"☁️ Video available on GCS: {gcs_url}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to get GCS URL: {str(e)}")
+            
             VIDEO_GENERATION_TASKS[story_id] = result
             
             # Also store by the actual story_id from the result (might be different format)
@@ -813,13 +827,21 @@ async def get_video_status(story_id: str):
                 task_status = VIDEO_GENERATION_TASKS[alt_id]
                 if task_status.get("status") == "success":
                     video_file = task_status.get("generated_file")
+                    gcs_url = task_status.get("gcs_url")
                     logger.info(f"✅ Video file found in task: {video_file}")
+                    if gcs_url:
+                        logger.info(f"☁️ GCS URL available: {gcs_url}")
+                    
+                    # Prefer local API endpoint but include GCS URL as backup
+                    video_url = f"/api/videos/{video_file}" if video_file else None
+                    
                     return VideoStatusResponse(
                         status="completed",
                         generation_in_progress=False,
-                        video_url=f"/api/videos/{video_file}" if video_file else None,
+                        video_url=video_url,
                         scenes_included=task_status.get("scenes_included", 10),
-                        message="✅ Video generation completed!"
+                        message="✅ Video generation completed!",
+                        gcs_url=gcs_url  # Include GCS URL if available
                     )
         
         # Fallback: Check filesystem for video files matching story pattern
@@ -894,6 +916,29 @@ async def get_generated_video(filename: str):
         logger.info(f"📁 Looking for file at: {file_path.absolute()}")
         logger.info(f"📁 File exists: {file_path.exists()}")
         
+        # If file doesn't exist locally, try to fetch from GCS
+        if not file_path.exists():
+            logger.info(f"🔍 File not found locally, checking GCS...")
+            try:
+                from gcs_helper import get_gcs_manager
+                gcs = get_gcs_manager()
+                
+                # Check if file exists in GCS
+                if gcs.video_exists(filename):
+                    logger.info(f"☁️ Video found in GCS, downloading...")
+                    local_path = gcs.download_video(filename)
+                    
+                    if local_path and os.path.exists(local_path):
+                        logger.info(f"✅ Video downloaded from GCS successfully")
+                        file_path = Path(local_path)
+                    else:
+                        logger.error(f"❌ Failed to download video from GCS")
+                else:
+                    logger.info(f"❌ Video not found in GCS either")
+            except Exception as gcs_error:
+                logger.error(f"❌ GCS retrieval error: {str(gcs_error)}")
+                logger.info(f"📍 Falling back to base64 serving if available")
+        
         if file_path.exists() and file_path.is_file():
             # Read video file and encode as base64
             with open(file_path, 'rb') as video_file:
@@ -902,16 +947,37 @@ async def get_generated_video(filename: str):
                 
             logger.info(f"✅ Video encoded successfully: {len(video_data)} bytes -> {len(video_base64)} base64 chars")
             
+            # Check if we have a GCS URL for this video
+            gcs_url = None
+            for task_id, task_data in VIDEO_GENERATION_TASKS.items():
+                if task_data.get("generated_file") == filename and task_data.get("gcs_url"):
+                    gcs_url = task_data["gcs_url"]
+                    logger.info(f"☁️ Found GCS URL for video: {gcs_url}")
+                    break
+            
             return {
                 "status": "success",
                 "filename": filename,
                 "video_data": video_base64,
                 "mime_type": "video/mp4",
                 "size_bytes": len(video_data),
-                "size_mb": round(len(video_data) / (1024 * 1024), 2)
+                "size_mb": round(len(video_data) / (1024 * 1024), 2),
+                "gcs_url": gcs_url  # Include GCS URL if available
             }
         else:
             logger.error(f"❌ Video file not found: {filename}")
+            
+            # Try to return GCS URL directly if available
+            for task_id, task_data in VIDEO_GENERATION_TASKS.items():
+                if task_data.get("generated_file") == filename and task_data.get("gcs_url"):
+                    logger.info(f"☁️ Returning GCS URL directly: {task_data['gcs_url']}")
+                    return {
+                        "status": "success",
+                        "filename": filename,
+                        "gcs_url": task_data["gcs_url"],
+                        "message": "Video available via GCS URL"
+                    }
+            
             raise HTTPException(status_code=404, detail=f"Video not found: {filename}")
             
     except Exception as e:

@@ -18,6 +18,12 @@ import os
 from dotenv import load_dotenv
 from io import BytesIO
 import logging
+import sys
+import os
+# Add backend path to sys.path so we can import from parent directory
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from gcs_helper import get_gcs_manager
 
 # Load environment variables
 load_dotenv()
@@ -249,6 +255,18 @@ professional animation quality with heartwarming atmosphere"""
                 if os.path.exists(filename):
                     file_size = os.path.getsize(filename)
                     logger.info(f"✅ Video file saved successfully: {filename} ({file_size} bytes)")
+                    
+                    # Upload to GCS for persistence
+                    try:
+                        gcs = get_gcs_manager()
+                        gcs_url = gcs.upload_video(filename)
+                        if gcs_url:
+                            logger.info(f"☁️ Video persisted to GCS: {gcs_url}")
+                        else:
+                            logger.warning(f"⚠️ Failed to upload video to GCS, using local file only")
+                    except Exception as gcs_error:
+                        logger.error(f"❌ GCS upload error: {str(gcs_error)}")
+                        logger.warning(f"⚠️ Video saved locally but not persisted to cloud")
                 else:
                     logger.error(f"❌ Video file was not created: {filename}")
                     return None
@@ -307,6 +325,18 @@ professional animation quality with heartwarming atmosphere"""
                                 if os.path.exists(filename):
                                     file_size = os.path.getsize(filename)
                                     logger.info(f"✅ Video file saved successfully: {filename} ({file_size} bytes)")
+                                    
+                                    # Upload to GCS for persistence
+                                    try:
+                                        gcs = get_gcs_manager()
+                                        gcs_url = gcs.upload_video(filename)
+                                        if gcs_url:
+                                            logger.info(f"☁️ Video persisted to GCS: {gcs_url}")
+                                        else:
+                                            logger.warning(f"⚠️ Failed to upload video to GCS, using local file only")
+                                    except Exception as gcs_error:
+                                        logger.error(f"❌ GCS upload error: {str(gcs_error)}")
+                                        logger.warning(f"⚠️ Video saved locally but not persisted to cloud")
                                     
                                     # Update state
                                     video_state.generated_videos.append(filename)
@@ -643,6 +673,18 @@ bright children's book illustration style with wonder and delight"""
                 if os.path.exists(filename):
                     file_size = os.path.getsize(filename)
                     logger.info(f"✅ Direct video file saved successfully: {filename} ({file_size} bytes)")
+                    
+                    # Upload to GCS for persistence
+                    try:
+                        gcs = get_gcs_manager()
+                        gcs_url = gcs.upload_video(filename)
+                        if gcs_url:
+                            logger.info(f"☁️ Video persisted to GCS: {gcs_url}")
+                        else:
+                            logger.warning(f"⚠️ Failed to upload video to GCS, using local file only")
+                    except Exception as gcs_error:
+                        logger.error(f"❌ GCS upload error: {str(gcs_error)}")
+                        logger.warning(f"⚠️ Video saved locally but not persisted to cloud")
                 else:
                     logger.error(f"❌ Direct video file was not created: {filename}")
                     return {
@@ -716,6 +758,18 @@ bright children's book illustration style with wonder and delight"""
                                 if os.path.exists(filename):
                                     file_size = os.path.getsize(filename)
                                     logger.info(f"✅ Direct video file saved successfully: {filename} ({file_size} bytes)")
+                                    
+                                    # Upload to GCS for persistence
+                                    try:
+                                        gcs = get_gcs_manager()
+                                        gcs_url = gcs.upload_video(filename)
+                                        if gcs_url:
+                                            logger.info(f"☁️ Video persisted to GCS: {gcs_url}")
+                                        else:
+                                            logger.warning(f"⚠️ Failed to upload video to GCS, using local file only")
+                                    except Exception as gcs_error:
+                                        logger.error(f"❌ GCS upload error: {str(gcs_error)}")
+                                        logger.warning(f"⚠️ Video saved locally but not persisted to cloud")
                                     
                                     video_state.generated_videos.append(filename)
                                     video_state.last_generated_video = filename
