@@ -2,63 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-    Alert,
     Dimensions,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
-    TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const profileData = {
-    name: "Emma",
+    name: "Adventure Seeker",
     avatar: "👧",
-    level: 3,
+    level: "Beginner",
     storiesRead: 6,
     totalTime: "2h 15m",
-    streak: 5,
+    readingSince: "Sep 21",
     favoriteGenre: "Adventure"
   };
 
-  const achievements = [
-    { 
-      id: 1, 
-      title: "First Story", 
-      description: "Read your first story!", 
-      icon: "📖", 
-      unlocked: true,
-      color: ['#a5e6ba', '#7fdeff']
-    },
-    { 
-      id: 2, 
-      title: "Speed Reader", 
-      description: "Read 5 stories", 
-      icon: "⚡", 
-      unlocked: true,
-      color: ['#f35b04', '#ef233c']
-    },
-    { 
-      id: 3, 
-      title: "Story Lover", 
-      description: "Read for 5 days in a row", 
-      icon: "❤️", 
-      unlocked: true,
-      color: ['#ef233c', '#f35b04']
-    },
-    { 
-      id: 4, 
-      title: "Adventure Expert", 
-      description: "Read 10 adventure stories", 
-      icon: "🗺️", 
-      unlocked: false,
-      color: ['#d1d5db', '#9ca3af']
-    }
-  ];
 
   const readingGoals = [
     { 
@@ -77,11 +41,6 @@ export default function ProfileScreen() {
     }
   ];
 
-  const handleSettings = () => {
-    Alert.alert('⚙️ Settings', 'Settings panel coming soon!', [
-      { text: 'OK', style: 'default' }
-    ]);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -110,7 +69,7 @@ export default function ProfileScreen() {
                   style={styles.levelBadge}
                 >
                   <Ionicons name="trophy" size={20} color="white" />
-                  <Text style={styles.levelText}>Level {profileData.level}</Text>
+                  <Text style={styles.levelText}>{profileData.level}</Text>
                 </LinearGradient>
               </View>
             </View>
@@ -136,8 +95,8 @@ export default function ProfileScreen() {
                   <Ionicons name="calendar" size={24} color="#a5e6ba" />
                 </View>
               </View>
-              <Text style={styles.statNumber}>{profileData.streak}</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
+              <Text style={styles.statNumber}>{profileData.readingSince}</Text>
+              <Text style={styles.statLabel}>Reading since</Text>
             </View>
           </View>
         </View>
@@ -178,66 +137,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Achievements */}
-        <View style={styles.section}>
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="medal" size={24} color="#f35b04" />
-              <Text style={styles.sectionTitle}>Achievements</Text>
-            </View>
-            
-            <View style={styles.achievementsGrid}>
-              {achievements.map((achievement) => (
-                <View
-                  key={achievement.id}
-                  style={[
-                    styles.achievementCard,
-                    !achievement.unlocked && styles.achievementCardLocked
-                  ]}
-                >
-                  <LinearGradient
-                    colors={achievement.color}
-                    style={[
-                      styles.achievementCardGradient,
-                      !achievement.unlocked && styles.achievementCardGradientLocked
-                    ]}
-                  >
-                    <Text style={styles.achievementIcon}>{achievement.icon}</Text>
-                    <Text style={[
-                      styles.achievementTitle,
-                      !achievement.unlocked && styles.achievementTextLocked
-                    ]}>
-                      {achievement.title}
-                    </Text>
-                    <Text style={[
-                      styles.achievementDescription,
-                      !achievement.unlocked && styles.achievementTextLocked
-                    ]}>
-                      {achievement.description}
-                    </Text>
-                  </LinearGradient>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
 
-        {/* Settings Button */}
-        <View style={styles.settingsSection}>
-          <TouchableOpacity
-            onPress={handleSettings}
-            style={styles.settingsButton}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#9683ec', '#5d16a6']}
-              style={styles.settingsButtonGradient}
-            >
-              <Ionicons name="settings" size={24} color="white" />
-              <Text style={styles.settingsButtonText}>Settings</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -411,74 +311,5 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 6,
-  },
-  achievementsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  achievementCard: {
-    width: (width - 84) / 2,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  achievementCardLocked: {
-    opacity: 0.6,
-  },
-  achievementCardGradient: {
-    padding: 16,
-    alignItems: 'center',
-    minHeight: 120,
-    justifyContent: 'center',
-  },
-  achievementCardGradientLocked: {
-    // Locked achievements use gray colors from the data
-  },
-  achievementIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  achievementTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  achievementDescription: {
-    fontSize: 12,
-    color: 'white',
-    textAlign: 'center',
-    opacity: 0.9,
-  },
-  achievementTextLocked: {
-    color: '#6b7280',
-  },
-  settingsSection: {
-    paddingBottom: 32,
-  },
-  settingsButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  settingsButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    minHeight: 70,
-  },
-  settingsButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginLeft: 12,
   },
 });
