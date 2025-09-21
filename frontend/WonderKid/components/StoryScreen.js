@@ -44,6 +44,9 @@ export default function StoryScreen() {
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
   const fadeValue = useRef(new Animated.Value(0)).current;
+
+  // Session story ID ref - tracks the authoritative backend story ID for this session
+  const sessionStoryIdRef = useRef(null);
   const [loadingMessage, setLoadingMessage] = useState("Preparing your magical adventure...");
 
   // Animation effects for loading screen
@@ -107,7 +110,11 @@ export default function StoryScreen() {
   // Call backend API to create story
   const generateStory = async (theme) => {
     setPhase('loading');
-    
+
+    // Reset session state for new story
+    sessionStoryIdRef.current = null;
+    setVideoTriggered(false);
+
     try {
       // Call backend API
       const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/generate-story', {
@@ -134,8 +141,14 @@ export default function StoryScreen() {
       console.log('🎨 Image Generated:', result.image_generated);
       
       // Use real AI-generated story data - ALWAYS use backend story_id for session consistency
-      const storyId = result.story_id || `story_${Date.now()}`;
-      console.log(`📚 Story created with backend ID: ${result.story_id}, using ID: ${storyId}`);
+      if (!result.story_id) {
+        console.error('❌ Backend did not provide story_id! This will cause session issues.');
+        console.error('📋 Full backend response:', result);
+        throw new Error('Backend did not provide story_id - cannot create story session');
+      }
+      const storyId = result.story_id; // Backend provides authoritative story_id
+      sessionStoryIdRef.current = storyId; // Store in ref for immediate access
+      console.log(`📚 Story created with backend ID: ${storyId}`);
       
       const aiStory = {
         paragraphs: result.paragraphs || [],
@@ -207,7 +220,7 @@ export default function StoryScreen() {
         },
         body: JSON.stringify({
           choice: storyData.choices[choiceIndex],
-          story_id: storyData.storyId || 'current_story',
+          story_id: sessionStoryIdRef.current || 'current_story', // Use session ref for immediate access
           current_paragraph: storyData.currentParagraph
         }),
       });
@@ -224,8 +237,16 @@ export default function StoryScreen() {
       console.log('🎨 New Image Generated:', result.image_generated);
       
       // Update story data with AI-generated continuation
-      // Keep consistent story ID - backend story_id takes priority for session consistency
+      // ALWAYS use backend story_id for session consistency - backend is authoritative
+      if (!result.story_id) {
+        console.error('❌ Backend continue-story did not provide story_id! Using previous ID as fallback.');
+        console.error('📋 Full backend response:', result);
+      }
       const currentStoryId = result.story_id || storyData.storyId;
+      // Update session ref if backend provided a story_id
+      if (result.story_id) {
+        sessionStoryIdRef.current = result.story_id;
+      }
       console.log(`📖 Continuing story with backend ID: ${result.story_id}, using ID: ${currentStoryId}, iteration: ${storyData.iteration + 1}`);
       
       setStoryData(prev => ({
@@ -307,7 +328,7 @@ export default function StoryScreen() {
 
     setIsCheckingVideoStatus(true);
     try {
-      const storyId = storyData.storyId || 'current_story';
+      const storyId = sessionStoryIdRef.current || storyData.storyId || 'current_story';
       console.log(`🎬 Checking video status for story: ${storyId}`);
       const response = await fetch(`${API_URL}/api/video-status/${storyId}`);
       const data = await response.json();
@@ -699,9 +720,9 @@ export default function StoryScreen() {
         presentationStyle="pageSheet"
       >
         <VideoPlayerScreen
-          storyId={storyData.storyId || 'current_story'}
+          storyId={sessionStoryIdRef.current || storyData.storyId || 'current_story'}
           onClose={() => {
-            console.log(`📹 Closing video player for story: ${storyData.storyId}`);
+            console.log(`📹 Closing video player for story: ${sessionStoryIdRef.current || storyData.storyId}`);
             setShowVideoPlayer(false);
           }}
           sceneCount={storyData.iteration}
