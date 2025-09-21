@@ -63,15 +63,14 @@ export default function App() {
               },
               tabBarItemStyle: {
                 borderRadius: 20,
-                marginHorizontal: 6,
-                marginVertical: 8,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
+                marginHorizontal: 8,
+                marginVertical: 6,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
               },
               tabBarLabelStyle: {
                 display: 'none',
               },
-              tabBarActiveBackgroundColor: '#ef233c',
             })}
           >
             <Tab.Screen 
