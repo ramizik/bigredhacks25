@@ -133,8 +133,8 @@ export default function StoryScreen() {
       console.log('🖼️ Image URL:', result.image_url);
       console.log('🎨 Image Generated:', result.image_generated);
       
-      // Use real AI-generated story data
-      const storyId = result.story_id || storyData.storyId || `story_${Date.now()}`;
+      // Use real AI-generated story data - ALWAYS use backend story_id for session consistency
+      const storyId = result.story_id || `story_${Date.now()}`;
       console.log(`📚 Story created with backend ID: ${result.story_id}, using ID: ${storyId}`);
       
       const aiStory = {
@@ -224,9 +224,9 @@ export default function StoryScreen() {
       console.log('🎨 New Image Generated:', result.image_generated);
       
       // Update story data with AI-generated continuation
-      // Keep consistent story ID
+      // Keep consistent story ID - backend story_id takes priority for session consistency
       const currentStoryId = result.story_id || storyData.storyId;
-      console.log(`📖 Continuing story with ID: ${currentStoryId}, iteration: ${storyData.iteration + 1}`);
+      console.log(`📖 Continuing story with backend ID: ${result.story_id}, using ID: ${currentStoryId}, iteration: ${storyData.iteration + 1}`);
       
       setStoryData(prev => ({
         ...prev,
