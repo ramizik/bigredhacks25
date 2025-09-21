@@ -886,8 +886,15 @@ async def get_video_status(story_id: str):
     logger.info(f"📊 Current time: {datetime.now().isoformat()}")
 
     try:
-        logger.info(f"📊 Starting video status check for: {story_id}")
-        logger.info(f"📊 Available video tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
+        logger.info(f"📊 CHECKPOINT 1: Starting video status check for: {story_id}")
+        logger.info(f"📊 CHECKPOINT 2: Available video tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
+
+        # Log VIDEO_GENERATION_TASKS structure for debugging
+        logger.info(f"📊 CHECKPOINT 3: VIDEO_GENERATION_TASKS type: {type(VIDEO_GENERATION_TASKS)}")
+        logger.info(f"📊 CHECKPOINT 4: VIDEO_GENERATION_TASKS length: {len(VIDEO_GENERATION_TASKS) if VIDEO_GENERATION_TASKS else 'None/Empty'}")
+
+        for task_id, task_data in (VIDEO_GENERATION_TASKS.items() if VIDEO_GENERATION_TASKS else []):
+            logger.info(f"📊 CHECKPOINT 5: Task {task_id} status: {task_data.get('status', 'NO_STATUS')}")
 
         # Handle current_story as special case for empty/unspecified story ID
         if story_id == "current_story" or story_id == "" or story_id == "undefined":
@@ -933,7 +940,7 @@ async def get_video_status(story_id: str):
                 # Continue with the original story_id if status retrieval fails
                 logger.info(f"⏭️ Continuing with original story_id: {story_id}")
 
-        logger.info(f"📊 Final story_id for processing: {story_id}")
+        logger.info(f"📊 CHECKPOINT 6: Final story_id for processing: {story_id}")
         # Clean up any empty string keys in VIDEO_GENERATION_TASKS
         if '' in VIDEO_GENERATION_TASKS:
             logger.warning("⚠️ Removing empty string key from VIDEO_GENERATION_TASKS")
@@ -948,7 +955,11 @@ async def get_video_status(story_id: str):
             logger.info(f"  Task {task_id}: status={task_data.get('status')}, file={task_data.get('generated_file', 'none')}")
         
         # Check if video generation task exists
+        logger.info(f"📊 CHECKPOINT 7: Checking if story_id '{story_id}' exists in VIDEO_GENERATION_TASKS")
+        logger.info(f"📊 CHECKPOINT 8: story_id in VIDEO_GENERATION_TASKS: {story_id in VIDEO_GENERATION_TASKS}")
+
         if story_id in VIDEO_GENERATION_TASKS:
+            logger.info(f"📊 CHECKPOINT 9: Found task for {story_id}")
             task_status = VIDEO_GENERATION_TASKS[story_id]
             logger.info(f"✅ Found task for {story_id}")
             # Log without large video data
@@ -974,13 +985,16 @@ async def get_video_status(story_id: str):
                     "message": "⏳ Video is being generated. Please wait 2-3 minutes."
                 }
             elif task_status.get("status") == "success":
+                logger.info(f"📊 CHECKPOINT 10: Task status is success, processing success case")
                 video_file = task_status.get("generated_file")
                 gcs_url = task_status.get("gcs_url")
-                logger.info(f"✅ Video file found in task: {video_file}")
+                logger.info(f"📊 CHECKPOINT 11: Video file found in task: {video_file}")
+                logger.info(f"📊 CHECKPOINT 12: GCS URL found in task: {gcs_url}")
                 if gcs_url:
                     logger.info(f"☁️ GCS URL available: {gcs_url}")
-                
-                return {
+
+                logger.info(f"📊 CHECKPOINT 13: About to return success response")
+                response = {
                     "status": "completed",
                     "generation_in_progress": False,
                     "video_url": f"/api/videos/{video_file}" if video_file else None,
@@ -988,6 +1002,8 @@ async def get_video_status(story_id: str):
                     "message": "✅ Video generation completed!",
                     "gcs_url": gcs_url  # Include GCS URL if available
                 }
+                logger.info(f"📊 CHECKPOINT 14: Response prepared: {response}")
+                return response
             else:
                 logger.warning(f"⚠️ Task status not success: {task_status}")
                 return {

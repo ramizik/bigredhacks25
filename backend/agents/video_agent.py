@@ -206,13 +206,9 @@ professional animation quality with heartwarming atmosphere"""
             try:
                 operation = client.operations.get(operation)
                 logger.info(f"📊 Operation status: {getattr(operation, 'done', 'unknown')}")
-                logger.info(f"🔍 Operation object type: {type(operation)}")
-                logger.info(f"🔍 Operation attributes: {dir(operation)}")
-                
+
                 # Log operation response details
                 if hasattr(operation, 'response'):
-                    logger.info(f"📋 Operation response type: {type(operation.response)}")
-                    logger.info(f"📋 Operation response: {operation.response}")
                     if operation.response and hasattr(operation.response, 'generated_videos'):
                         logger.info(f"🎬 Generated videos count: {len(operation.response.generated_videos) if operation.response.generated_videos else 0}")
                         if operation.response.generated_videos:
@@ -624,13 +620,9 @@ bright children's book illustration style with wonder and delight"""
             try:
                 operation = client.operations.get(operation)
                 logger.info(f"📊 Direct video operation status: {getattr(operation, 'done', 'unknown')}")
-                logger.info(f"🔍 Direct operation object type: {type(operation)}")
-                logger.info(f"🔍 Direct operation attributes: {dir(operation)}")
-                
+
                 # Log operation response details
                 if hasattr(operation, 'response'):
-                    logger.info(f"📋 Direct operation response type: {type(operation.response)}")
-                    logger.info(f"📋 Direct operation response: {operation.response}")
                     if operation.response and hasattr(operation.response, 'generated_videos'):
                         logger.info(f"🎬 Direct generated videos count: {len(operation.response.generated_videos) if operation.response.generated_videos else 0}")
                         if operation.response.generated_videos:
