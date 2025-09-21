@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import glob
+import json
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import asyncio
@@ -374,7 +375,8 @@ def trigger_background_video_generation(story_id: str):
     """Trigger video generation in background thread"""
     def generate_video():
         try:
-            logger.info(f"🎬 Background video generation started for story {story_id}")
+            logger.info(f"🎬 === BACKGROUND VIDEO GENERATION START ===")
+            logger.info(f"🎬 Story ID: {story_id}")
             logger.info(f"📊 Current story state: {get_story_status()}")
             
             # Get story context for logging
@@ -382,13 +384,22 @@ def trigger_background_video_generation(story_id: str):
             logger.info(f"📚 Story context: scenes={story_status.get('scene_count', 0)}, images={story_status.get('images_generated', 0)}")
             
             result = generate_story_video_async()
+            
+            # Ensure story_id is included in the result
+            result['requested_story_id'] = story_id
             VIDEO_GENERATION_TASKS[story_id] = result
             
+            # Also store by the actual story_id from the result (might be different format)
+            if result.get('story_id') and result['story_id'] != story_id:
+                logger.info(f"🔄 Also mapping video to story_id: {result['story_id']}")
+                VIDEO_GENERATION_TASKS[result['story_id']] = result
+            
             if result.get("status") == "success":
-                logger.info(f"✅ Background video generation completed successfully for {story_id}")
-                logger.info(f"📁 Generated file: {result.get('generated_file', 'unknown')}")
+                logger.info(f"✅ Background video generation completed successfully")
+                logger.info(f"📁 Generated file: {result}")
+                logger.info(f"📊 Updated task mappings: {list(VIDEO_GENERATION_TASKS.keys())}")
             else:
-                logger.error(f"❌ Background video generation failed for {story_id}: {result.get('error', 'unknown error')}")
+                logger.error(f"❌ Background video generation failed: {result.get('error', 'unknown error')}")
                 
         except Exception as e:
             logger.error(f"❌ Background video generation exception for {story_id}: {e}")
@@ -401,11 +412,14 @@ def trigger_background_video_generation(story_id: str):
             }
     
     # Start video generation in background thread
-    logger.info(f"🚀 Starting background thread for video generation of story {story_id}")
+    logger.info(f"🚀 === TRIGGERING VIDEO GENERATION ===")
+    logger.info(f"🚀 Story ID: {story_id}")
+    logger.info(f"🚀 Current tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
+    
     thread = threading.Thread(target=generate_video, daemon=True)
     thread.start()
     VIDEO_GENERATION_TASKS[story_id] = {"status": "processing", "message": "Video generation started"}
-    logger.info(f"📊 Active video generation tasks: {len(VIDEO_GENERATION_TASKS)}")
+    logger.info(f"📊 Active video generation tasks after trigger: {list(VIDEO_GENERATION_TASKS.keys())}")
 
 # API Health Check
 @app.get("/api/health")
@@ -735,16 +749,24 @@ async def generate_story_video(request: VideoGenerationRequest):
 @app.get("/api/video-status/{story_id}", response_model=VideoStatusResponse)
 async def get_video_status(story_id: str):
     """Check the status of video generation for a story"""
-    logger.info(f"📊 Checking video status for story {story_id}")
+    logger.info(f"📊 === VIDEO STATUS REQUEST ===")
+    logger.info(f"📊 Story ID requested: {story_id}")
+    logger.info(f"📊 Current time: {datetime.now().isoformat()}")
     
     try:
         # Enhanced logging for debugging
-        logger.info(f"📊 Active video generation tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
+        logger.info(f"📊 Total active tasks: {len(VIDEO_GENERATION_TASKS)}")
+        logger.info(f"📊 Active task IDs: {list(VIDEO_GENERATION_TASKS.keys())}")
+        
+        # Log all tasks for debugging
+        for task_id, task_data in VIDEO_GENERATION_TASKS.items():
+            logger.info(f"  Task {task_id}: status={task_data.get('status')}, file={task_data.get('generated_file', 'none')}")
         
         # Check if video generation task exists
         if story_id in VIDEO_GENERATION_TASKS:
             task_status = VIDEO_GENERATION_TASKS[story_id]
-            logger.info(f"📊 Found task status for {story_id}: {task_status}")
+            logger.info(f"✅ Found task for {story_id}")
+            logger.info(f"📊 Task details: {json.dumps(task_status, default=str)}")
             
             if task_status.get("status") == "processing":
                 return VideoStatusResponse(
@@ -774,7 +796,31 @@ async def get_video_status(story_id: str):
                     message=f"❌ Video generation failed: {task_status.get('error', 'Unknown error')}"
                 )
         
-        logger.info(f"📊 No task found for {story_id}, checking filesystem and story status...")
+        logger.info(f"📊 No task found for {story_id}, checking alternative IDs and filesystem...")
+        
+        # Try alternative story ID formats
+        alt_story_ids = []
+        if not story_id.startswith('story_'):
+            alt_story_ids.append(f"story_{story_id}")
+        if story_id.startswith('story_'):
+            alt_story_ids.append(story_id.replace('story_', ''))
+        # Try current_story as a fallback
+        alt_story_ids.append('current_story')
+        
+        for alt_id in alt_story_ids:
+            if alt_id in VIDEO_GENERATION_TASKS:
+                logger.info(f"✅ Found task with alternative ID: {alt_id}")
+                task_status = VIDEO_GENERATION_TASKS[alt_id]
+                if task_status.get("status") == "success":
+                    video_file = task_status.get("generated_file")
+                    logger.info(f"✅ Video file found in task: {video_file}")
+                    return VideoStatusResponse(
+                        status="completed",
+                        generation_in_progress=False,
+                        video_url=f"/api/videos/{video_file}" if video_file else None,
+                        scenes_included=task_status.get("scenes_included", 10),
+                        message="✅ Video generation completed!"
+                    )
         
         # Fallback: Check filesystem for video files matching story pattern
         import glob
@@ -832,13 +878,22 @@ async def get_video_status(story_id: str):
 # Serve generated videos as base64 data (hackathon demo approach)
 @app.get("/api/videos/{filename}")
 async def get_generated_video(filename: str):
-    logger.info(f"🎬 Serving generated video as base64: {filename}")
+    logger.info(f"🎬 === VIDEO FILE REQUEST ===")
+    logger.info(f"🎬 Filename requested: {filename}")
+    logger.info(f"📁 Current directory: {os.getcwd()}")
     
     try:
         import base64
         
+        # List all MP4 files in current directory
+        mp4_files = glob.glob("*.mp4")
+        logger.info(f"📁 Available MP4 files: {mp4_files}")
+        
         # Check if file exists in current directory
         file_path = Path(filename)
+        logger.info(f"📁 Looking for file at: {file_path.absolute()}")
+        logger.info(f"📁 File exists: {file_path.exists()}")
+        
         if file_path.exists() and file_path.is_file():
             # Read video file and encode as base64
             with open(file_path, 'rb') as video_file:

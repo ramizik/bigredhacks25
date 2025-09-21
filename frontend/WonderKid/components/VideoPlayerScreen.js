@@ -1,15 +1,15 @@
 import { Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -50,41 +50,75 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
 
   const loadVideoData = async (videoUrl) => {
     try {
-      console.log('🎬 Loading video data from:', videoUrl);
+      console.log('🎬 === LOADING VIDEO DATA ===');
+      console.log('🎬 Video URL from status:', videoUrl);
+      console.log('🎬 Full URL to fetch:', `${API_URL}${videoUrl}`);
       
       // Try to fetch video data from the API
       const response = await fetch(`${API_URL}${videoUrl}`);
-      const data = await response.json();
+      console.log('📡 Video fetch response status:', response.status, response.ok);
+      console.log('📡 Response headers:', response.headers);
       
-      if (data.status === 'success' && data.video_data) {
-        // Video is served as base64 data
-        console.log('✅ Video data received as base64:', data.size_mb, 'MB');
-        setVideoData(data.video_data);
-        setVideoUrl(`data:${data.mime_type};base64,${data.video_data}`);
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        console.log('📡 Content-Type:', contentType);
+        
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          console.log('📊 JSON response received:', {
+            status: data.status,
+            has_video_data: !!data.video_data,
+            size_mb: data.size_mb,
+            filename: data.filename
+          });
+          
+          if (data.status === 'success' && data.video_data) {
+            // Video is served as base64 data
+            console.log('✅ Video data received as base64:', data.size_mb, 'MB');
+            console.log('🎬 Base64 data length:', data.video_data.length);
+            setVideoData(data.video_data);
+            const videoDataUrl = `data:${data.mime_type};base64,${data.video_data}`;
+            console.log('🎬 Setting video URL as data URL, first 100 chars:', videoDataUrl.substring(0, 100));
+            setVideoUrl(videoDataUrl);
+          } else {
+            console.log('❌ JSON response missing video data');
+            // Fallback to direct URL
+            console.log('🔄 Using direct video URL');
+            setVideoUrl(`${API_URL}${videoUrl}`);
+          }
+        } else {
+          // Not JSON, assume it's the video file directly
+          console.log('🔄 Response is not JSON, using direct URL');
+          setVideoUrl(`${API_URL}${videoUrl}`);
+        }
       } else {
-        // Fallback to direct URL
-        console.log('🔄 Using direct video URL');
-        setVideoUrl(`${API_URL}${videoUrl}`);
+        console.error('❌ Video fetch failed with status:', response.status);
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch (err) {
       console.error('❌ Error loading video data:', err);
+      console.error('Stack:', err.stack);
       // Fallback to direct URL
+      console.log('🔄 Fallback: Using direct video URL');
       setVideoUrl(`${API_URL}${videoUrl}`);
     }
   };
 
   const checkVideoStatus = async () => {
+    console.log(`🔍 Checking video status for story: ${storyId}`);
     try {
       const response = await fetch(`${API_URL}/api/video-status/${storyId}`);
+      console.log('📡 Status response:', response.status, response.ok);
       const data = await response.json();
       
-      console.log('🎬 Video status:', data);
+      console.log('🎬 Video status data:', JSON.stringify(data, null, 2));
       
       setVideoStatus(data.status);
       
       if (data.status === 'completed' && data.video_url) {
+        console.log('✅ Video completed, URL:', data.video_url);
         // Try to load video data (base64 or URL)
-        loadVideoData(data.video_url);
+        await loadVideoData(data.video_url);
         setLoading(false);
         if (checkInterval.current) {
           clearInterval(checkInterval.current);
@@ -93,14 +127,19 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
         // Keep loading, video is being generated
         console.log('⏳ Video still generating...');
       } else if (data.status === 'not_started') {
+        console.log('🚀 Video not started, triggering generation...');
         // Trigger video generation
         triggerVideoGeneration();
       } else if (data.status === 'error') {
+        console.log('❌ Video error:', data.message);
         setError(data.message || 'Video generation failed');
         setLoading(false);
+      } else {
+        console.log('❓ Unknown status:', data.status);
       }
     } catch (err) {
       console.error('❌ Error checking video status:', err);
+      console.error('Stack trace:', err.stack);
       setError('Failed to check video status');
       setLoading(false);
     }
