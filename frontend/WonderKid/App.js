@@ -68,6 +68,7 @@ export default function App() {
                 paddingVertical: 10,
                 paddingHorizontal: 16,
               },
+              tabBarActiveBackgroundColor: '#ef233c',
               tabBarLabelStyle: {
                 display: 'none',
               },

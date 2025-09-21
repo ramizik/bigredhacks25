@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useRef, useState } from 'react';
@@ -20,6 +21,25 @@ import {
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+
+// Helper function to save image to gallery
+const saveImageToGallery = async (imageUrl) => {
+  if (!imageUrl) return;
+  
+  try {
+    const existingImages = await AsyncStorage.getItem('sessionImages');
+    const imageArray = existingImages ? JSON.parse(existingImages) : [];
+    
+    // Avoid duplicates
+    if (!imageArray.includes(imageUrl)) {
+      imageArray.push(imageUrl);
+      await AsyncStorage.setItem('sessionImages', JSON.stringify(imageArray));
+      console.log('📸 Image saved to gallery:', imageUrl);
+    }
+  } catch (error) {
+    console.error('Failed to save image to gallery:', error);
+  }
+};
 
 export default function StoryScreen() {
   const [phase, setPhase] = useState('input'); // 'input' | 'loading' | 'reading' | 'choosing' | 'complete'
@@ -168,6 +188,12 @@ export default function StoryScreen() {
       };
       
       setStoryData(aiStory);
+      
+      // Save image to gallery if available
+      if (result.image_url) {
+        saveImageToGallery(result.image_url);
+      }
+      
       setPhase('reading');
       
     } catch (error) {
@@ -261,6 +287,11 @@ export default function StoryScreen() {
         imageGenerated: result.image_generated || false,
         storyId: currentStoryId
       }));
+      
+      // Save new image to gallery if available
+      if (result.image_url && result.image_url !== storyData.imageUrl) {
+        saveImageToGallery(result.image_url);
+      }
       
       // Check for video generation trigger at 10th iteration
       if (result.video_trigger || storyData.iteration + 1 >= 10) {
