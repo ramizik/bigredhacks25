@@ -7,6 +7,7 @@ import {
     Alert,
     Dimensions,
     Image,
+    Modal,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -21,6 +22,8 @@ const imageSize = (width - 60) / 2; // Two columns with margins
 export default function HistoryScreen() {
   const [sessionImages, setSessionImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Load images from AsyncStorage on component mount
   useEffect(() => {
@@ -70,20 +73,14 @@ export default function HistoryScreen() {
     );
   };
 
-  const viewImageFullScreen = (imageUrl, index) => {
-    Alert.alert(
-      `🖼️ Image ${index + 1}`,
-      'Generated from your story adventure!',
-      [
-        { text: 'Close', style: 'cancel' },
-        { 
-          text: 'View Details', 
-          onPress: () => {
-            Alert.alert('Image Details', `Story Scene ${index + 1}\nGenerated: ${new Date().toLocaleDateString()}`);
-          }
-        }
-      ]
-    );
+  const viewImageFullScreen = (imageUrl) => {
+    setSelectedImage(imageUrl);
+    setModalVisible(true);
+  };
+  
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedImage(null);
   };
 
   if (loading) {
@@ -100,6 +97,30 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Full Screen Image Modal */}
+      <Modal
+        animationType="fade"
+        transparent={false}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity 
+            style={styles.closeButton} 
+            onPress={closeModal}
+          >
+            <Ionicons name="close" size={30} color="white" />
+          </TouchableOpacity>
+          {selectedImage && (
+            <Image
+              source={{ uri: `https://bigredhacks25-331813490179.us-east4.run.app${selectedImage}` }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+      
       <LinearGradient colors={['#7fdeff', '#a5e6ba', '#9683ec']} style={styles.gradientContainer}>
         <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           {/* Header */}
@@ -110,12 +131,7 @@ export default function HistoryScreen() {
                 Images generated from your adventures
               </Text>
             </View>
-            <View style={styles.headerBadge}>
-              <Ionicons name="images" size={20} color="#f35b04" />
-              <Text style={styles.headerBadgeText}>
-                {sessionImages.length} Images
-              </Text>
-            </View>
+
           </View>
 
           {sessionImages.length === 0 ? (
@@ -151,7 +167,7 @@ export default function HistoryScreen() {
                     <TouchableOpacity
                       key={index}
                       style={styles.imageCard}
-                      onPress={() => viewImageFullScreen(imageUrl, index)}
+                      onPress={() => viewImageFullScreen(imageUrl)}
                       activeOpacity={0.8}
                     >
                       <Image
@@ -159,10 +175,6 @@ export default function HistoryScreen() {
                         style={styles.image}
                         resizeMode="cover"
                       />
-                      <View style={styles.imageOverlay}>
-                        <Text style={styles.imageNumber}>{index + 1}</Text>
-                        <Ionicons name="eye" size={20} color="white" />
-                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -231,22 +243,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignSelf: 'center',
-  },
-  headerBadgeText: {
-    marginLeft: 8,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#5d16a6',
-  },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -319,23 +316,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  imageOverlay: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  imageNumber: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: 'white',
-    marginRight: 6,
-  },
+
   actionsContainer: {
     paddingBottom: 40,
     alignItems: 'center',
@@ -355,5 +336,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 10,
   },
 });
