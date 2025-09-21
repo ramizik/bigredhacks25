@@ -233,7 +233,6 @@ def clean_and_parse_json(response_text: str, fallback_data: dict) -> dict:
 
         # Also handle patterns like: "paragraphs": ["text1", "text2"], ["text3", "text4"]
         # This should become: "paragraphs": ["text1", "text2", "text3", "text4"]
-        import re
 
         # More robust pattern to handle the paragraph array issue
         # Look for: "paragraphs": [...], [...] and merge the arrays
