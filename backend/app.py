@@ -438,11 +438,15 @@ def trigger_background_video_generation(story_id: str):
     logger.info(f"🚀 === TRIGGERING VIDEO GENERATION ===")
     logger.info(f"🚀 Story ID: {story_id}")
     logger.info(f"🚀 Current tasks: {list(VIDEO_GENERATION_TASKS.keys())}")
-    
-    thread = threading.Thread(target=generate_video, daemon=True)
-    thread.start()
-    VIDEO_GENERATION_TASKS[story_id] = {"status": "processing", "message": "Video generation started"}
-    logger.info(f"📊 Active video generation tasks after trigger: {list(VIDEO_GENERATION_TASKS.keys())}")
+
+    # Only add task if story_id is not empty
+    if story_id and story_id.strip():
+        thread = threading.Thread(target=generate_video, daemon=True)
+        thread.start()
+        VIDEO_GENERATION_TASKS[story_id] = {"status": "processing", "message": "Video generation started"}
+        logger.info(f"📊 Active video generation tasks after trigger: {list(VIDEO_GENERATION_TASKS.keys())}")
+    else:
+        logger.warning(f"⚠️ Cannot trigger video generation with empty story_id: '{story_id}'")
 
 # API Health Check
 @app.get("/api/health")
@@ -647,6 +651,14 @@ async def continue_story(request: StoryChoiceRequest):
         raise HTTPException(status_code=503, detail="Reading Agent system not available")
     
     try:
+        # Validate story ID consistency between frontend and backend session
+        current_story_status = get_story_status()
+        backend_story_id = current_story_status.get('story_id', '')
+
+        if backend_story_id and request.story_id != 'current_story' and request.story_id != backend_story_id:
+            logger.warning(f"⚠️ Story ID mismatch! Frontend: {request.story_id}, Backend: {backend_story_id}")
+            logger.info(f"🔄 Using backend story ID for session consistency: {backend_story_id}")
+
         # Use AI agent to continue story with choice
         logger.info(f"🤖 Continuing story with AI choice: {request.choice}")
         agent_result = continue_story_with_choice(request.choice)
@@ -683,7 +695,7 @@ async def continue_story(request: StoryChoiceRequest):
         logger.info(f"✅ Story continued successfully. Progress: {progress_percentage}%")
         
         return StoryResponse(
-            story_id=request.story_id,
+            story_id=story_state.story_id,  # Use backend's authoritative story ID
             paragraphs=updated_story["paragraphs"],
             current_paragraph=current_paragraph,
             choices=updated_story["choices"],
@@ -842,10 +854,15 @@ async def get_video_status(story_id: str):
                     logger.info(f"🔄 Using most recent task ID: {story_id}")
     
     try:
+        # Clean up any empty string keys in VIDEO_GENERATION_TASKS
+        if '' in VIDEO_GENERATION_TASKS:
+            logger.warning("⚠️ Removing empty string key from VIDEO_GENERATION_TASKS")
+            del VIDEO_GENERATION_TASKS['']
+
         # Enhanced logging for debugging
         logger.info(f"📊 Total active tasks: {len(VIDEO_GENERATION_TASKS)}")
         logger.info(f"📊 Active task IDs: {list(VIDEO_GENERATION_TASKS.keys())}")
-        
+
         # Log all tasks for debugging
         for task_id, task_data in VIDEO_GENERATION_TASKS.items():
             logger.info(f"  Task {task_id}: status={task_data.get('status')}, file={task_data.get('generated_file', 'none')}")
@@ -893,15 +910,27 @@ async def get_video_status(story_id: str):
         
         logger.info(f"📊 No task found for {story_id}, checking alternative IDs and filesystem...")
         
-        # Try alternative story ID formats
+        # Try alternative story ID formats including timestamp-based IDs
         alt_story_ids = []
         if not story_id.startswith('story_'):
             alt_story_ids.append(f"story_{story_id}")
         if story_id.startswith('story_'):
             alt_story_ids.append(story_id.replace('story_', ''))
+
+        # Also check for any timestamp-based story IDs from today
+        from datetime import datetime
+        today = datetime.now().strftime('%Y%m%d')
+
+        # Get all existing task IDs and check for any that might be related
+        all_task_ids = list(VIDEO_GENERATION_TASKS.keys())
+        for task_id in all_task_ids:
+            if task_id and ('story_' in task_id and today in task_id):
+                alt_story_ids.append(task_id)
+
         # Try current_story and empty string as fallbacks
         alt_story_ids.append('current_story')
-        alt_story_ids.append('')  # Check for empty string key
+        if '' in VIDEO_GENERATION_TASKS:
+            alt_story_ids.append('')  # Check for empty string key only if it exists
         
         for alt_id in alt_story_ids:
             if alt_id in VIDEO_GENERATION_TASKS:

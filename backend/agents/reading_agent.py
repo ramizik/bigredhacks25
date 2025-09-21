@@ -472,9 +472,11 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             image_file=image_file
         )
         
-        # Check if video generation was triggered (at 10 iterations)
+        # Check if video generation should be triggered (at 10 scenes)
         video_trigger_info = None
-        if story_state.scene_count == 10 and story_state.video_generation_triggered:
+        if story_state.scene_count == 10 and not story_state.video_generation_triggered:
+            # Mark video generation as triggered
+            story_state.video_generation_triggered = True
             video_trigger_info = {
                 "video_triggered": True,
                 "message": "🎬 Congratulations! Your story has reached 10 scenes. A magical video is being created!",
