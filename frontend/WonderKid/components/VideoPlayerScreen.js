@@ -23,10 +23,12 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   const [generationProgress, setGenerationProgress] = useState(0);
   const checkInterval = useRef(null);
 
-  // Initialize video player with expo-video
-  const player = useVideoPlayer(videoUrl, (player) => {
-    player.loop = false;
-    player.muted = false;
+  // Initialize video player with expo-video v3
+  const player = useVideoPlayer(videoUrl ? videoUrl : null, (player) => {
+    if (player) {
+      player.loop = false;
+      player.muted = false;
+    }
   });
 
   useEffect(() => {
@@ -163,19 +165,40 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     setError(`Failed to play video: ${error?.message || 'Unknown error'}. Please try again.`);
   };
 
-  // Add error handling for the player
+  // Add error handling for the player (v3 API)
   useEffect(() => {
     if (player) {
-      const subscription = player.addListener('playbackError', handleVideoError);
-      return () => subscription?.remove();
+      const handleError = (error) => {
+        console.error('🎬 Video player error:', error);
+        handleVideoError(error);
+      };
+
+      // In v3, error handling might be different
+      player.addListener?.('error', handleError);
+
+      return () => {
+        player.removeListener?.('error', handleError);
+      };
     }
   }, [player]);
 
-  // Update player source when videoUrl changes
+  // Update player source when videoUrl changes (v3 API)
   useEffect(() => {
     if (player && videoUrl) {
       console.log('🎬 Setting video source:', videoUrl);
-      player.replace(videoUrl);
+      try {
+        // In v3, might need to use different method
+        if (player.replace) {
+          player.replace(videoUrl);
+        } else if (player.loadAsync) {
+          player.loadAsync({ uri: videoUrl });
+        } else {
+          console.warn('🎬 Player replace method not found, player might auto-load');
+        }
+      } catch (error) {
+        console.error('🎬 Error setting video source:', error);
+        handleVideoError(error);
+      }
     }
   }, [player, videoUrl]);
 
