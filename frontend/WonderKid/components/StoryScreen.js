@@ -334,8 +334,29 @@ export default function StoryScreen() {
     try {
       const storyId = sessionStoryIdRef.current || storyData.storyId || 'current_story';
       console.log(`🎬 Checking video status for story: ${storyId}`);
-      const response = await fetch(`${API_URL}/api/video-status/${storyId}`);
-      const data = await response.json();
+
+      // Ensure story ID is properly URL encoded
+      const encodedStoryId = encodeURIComponent(storyId);
+      const response = await fetch(`${API_URL}/api/video-status/${encodedStoryId}`);
+
+      // Better error handling for non-JSON responses
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Video status API error ${response.status}: ${errorText}`);
+        throw new Error(`Video status API error: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      console.log(`📋 Raw video status response: ${responseText.substring(0, 200)}...`);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error(`❌ Failed to parse video status response as JSON: ${parseError.message}`);
+        console.error(`📋 Raw response: ${responseText}`);
+        throw new Error(`Invalid response from video status API: ${parseError.message}`);
+      }
 
       if (data.status === 'completed' && (data.video_url || data.gcs_url)) {
         console.log(`✅ Video ready! GCS URL: ${data.gcs_url}, Local URL: ${data.video_url}`);
@@ -346,9 +367,16 @@ export default function StoryScreen() {
           "Your magical video is still being created. It usually takes 2-3 minutes. Please try again in a moment!",
           [{ text: 'OK' }]
         );
+      } else if (data.status === 'error') {
+        console.error(`❌ Video status error: ${data.message}`);
+        Alert.alert(
+          "🚫 Video Error",
+          `There was an issue checking your video status: ${data.message}. Please try again.`,
+          [{ text: 'OK' }]
+        );
       } else {
         console.log(`🎬 Video status: ${data.status}, letting VideoPlayerScreen handle it`);
-        // Not started or error, let the VideoPlayerScreen handle triggering it
+        // Not started or other status, let the VideoPlayerScreen handle triggering it
         setShowVideoPlayer(true);
       }
     } catch (error) {

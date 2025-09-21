@@ -565,7 +565,7 @@ async def generate_story(request: StoryThemeRequest):
             current_paragraph=0,
             choices=story_data.get("choices", []),
             illustration_prompt=story_data.get("illustration_prompts", [""])[0],
-            mood=story_data.get("mood", "adventure"),
+            mood=story_data.get("mood", "happy"),
             is_complete=False,
             progress_percentage=story_progress.get("progress_percentage", 0),
             image_url=image_url,
@@ -633,7 +633,7 @@ async def create_story(request: StoryThemeRequest):
             "paragraphs": story_data.get("paragraphs", []),
             "choices": story_data.get("choices", []),
             "illustration_prompts": story_data.get("illustration_prompts", []),
-            "mood": story_data.get("mood", "magical"),
+            "mood": story_data.get("mood", "happy"),
             "educational_theme": story_data.get("educational_theme", ""),
             "ai_powered": agent_result.get("ai_powered", True),
             "timestamp": datetime.now().isoformat(),
@@ -727,7 +727,7 @@ async def continue_story(request: StoryChoiceRequest):
             current_paragraph=current_paragraph,
             choices=updated_story["choices"],
             illustration_prompt=continuation_data.get("illustration_prompts", [""])[0],
-            mood="adventure",
+            mood=continuation_data.get("mood", "happy"),
             is_complete=is_complete,
             progress_percentage=int(progress_percentage),
             image_url=image_url,
@@ -1101,7 +1101,17 @@ async def get_video_status(story_id: str):
         
     except Exception as e:
         logger.error(f"❌ Video status check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Video status check failed: {str(e)}")
+        logger.error(f"🔍 Exception type: {type(e).__name__}")
+        logger.error(f"📋 Exception details: {str(e)}")
+
+        # Return proper JSON error response instead of raising HTTPException
+        return VideoStatusResponse(
+            status="error",
+            generation_in_progress=False,
+            video_url=None,
+            scenes_included=0,
+            message=f"❌ Video status check failed: {str(e)}"
+        )
 
 # Serve generated videos as base64 data (hackathon demo approach)
 @app.get("/api/videos/{filename}")

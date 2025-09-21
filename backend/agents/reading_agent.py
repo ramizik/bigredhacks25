@@ -133,6 +133,65 @@ class StoryState:
 # Global story state
 story_state = StoryState()
 
+def generate_theme_specific_fallback(theme: str, age_group: str = "5-8") -> dict:
+    """Generate theme-specific fallback story data instead of generic adventure"""
+
+    # Determine theme-specific elements
+    theme_lower = theme.lower()
+
+    # Theme-specific vocabulary
+    if any(word in theme_lower for word in ["space", "astronaut", "planet", "star", "rocket"]):
+        setting = "cosmic space adventure"
+        mood = "exciting"
+        adjective = "stellar"
+        action = "explore the galaxy"
+    elif any(word in theme_lower for word in ["princess", "castle", "royal", "kingdom", "crown"]):
+        setting = "royal kingdom adventure"
+        mood = "elegant"
+        adjective = "royal"
+        action = "rule the kingdom"
+    elif any(word in theme_lower for word in ["dragon", "magic", "wizard", "fantasy", "spell"]):
+        setting = "magical fantasy world"
+        mood = "mystical"
+        adjective = "magical"
+        action = "cast powerful spells"
+    elif any(word in theme_lower for word in ["ocean", "sea", "underwater", "fish", "mermaid"]):
+        setting = "underwater adventure"
+        mood = "peaceful"
+        adjective = "aquatic"
+        action = "explore the deep seas"
+    elif any(word in theme_lower for word in ["robot", "cyber", "future", "tech", "ai"]):
+        setting = "futuristic tech world"
+        mood = "innovative"
+        adjective = "high-tech"
+        action = "build amazing inventions"
+    else:
+        setting = f"{theme} adventure"
+        mood = "happy"
+        adjective = "wonderful"
+        action = f"explore the {theme} world"
+
+    return {
+        "story_title": f"Your {theme.title()} Adventure",
+        "paragraphs": [
+            f"Once upon a time, there was a {adjective} {setting} waiting to unfold.",
+            f"The story continues with {mood} moments and exciting discoveries.",
+            f"Every choice you make shapes this amazing journey to {action}."
+        ],
+        "choices": [
+            f"Explore the {adjective} path",
+            "Meet new friends along the way",
+            f"Discover hidden treasures in this {setting}"
+        ],
+        "illustration_prompts": [
+            f"A {adjective} {setting} scene with bright colors",
+            f"Friendly characters in a {mood} {theme} setting",
+            f"An exciting discovery moment in the {theme} world"
+        ],
+        "mood": mood,
+        "educational_theme": f"courage and friendship in {theme} adventures"
+    }
+
 def clean_and_parse_json(response_text: str, fallback_data: dict) -> dict:
     """Clean and parse JSON response with multiple fallback strategies"""
     try:
@@ -167,19 +226,114 @@ def clean_and_parse_json(response_text: str, fallback_data: dict) -> dict:
     try:
         # Try to fix common JSON issues
         fixed_text = response_text
-        
+
+        # Fix the specific issue with paragraphs field having invalid array structure
+        # Look for pattern: ], [" and replace with ", "
+        fixed_text = re.sub(r'\],\s*\[', ', ', fixed_text)
+
+        # Also handle patterns like: "paragraphs": ["text1", "text2"], ["text3", "text4"]
+        # This should become: "paragraphs": ["text1", "text2", "text3", "text4"]
+        import re
+
+        # More robust pattern to handle the paragraph array issue
+        # Look for: "paragraphs": [...], [...] and merge the arrays
+        paragraphs_pattern = r'"paragraphs":\s*\[([^\]]+)\],\s*\[([^\]]+)\]'
+        def fix_paragraphs(match):
+            first_array = match.group(1).strip()
+            second_array = match.group(2).strip()
+            return f'"paragraphs": [{first_array}, {second_array}]'
+
+        if re.search(paragraphs_pattern, fixed_text):
+            print(f"🔧 Found malformed paragraphs array - fixing...")
+            fixed_text = re.sub(paragraphs_pattern, fix_paragraphs, fixed_text)
+            print(f"📋 After paragraphs fix: {fixed_text[:300]}...")
+
         # Fix single quotes to double quotes
         fixed_text = re.sub(r"'([^']*)':", r'"\1":', fixed_text)
         fixed_text = re.sub(r":\s*'([^']*)'", r': "\1"', fixed_text)
-        
+
         # Remove trailing commas
         fixed_text = re.sub(r',\s*}', '}', fixed_text)
         fixed_text = re.sub(r',\s*]', ']', fixed_text)
-        
+
+        print(f"🔧 Attempting to fix JSON with paragraph array issue...")
+        print(f"📋 Fixed text preview: {fixed_text[:200]}...")
+
         return json.loads(fixed_text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON fix attempt failed: {str(e)}")
         pass
     
+    # Final attempt: Try to extract values manually if JSON parsing fails
+    try:
+        print(f"🔧 Attempting manual extraction as last resort...")
+
+        # Extract story title
+        title_match = re.search(r'"story_title":\s*"([^"]*)"', response_text)
+        title = title_match.group(1) if title_match else fallback_data["story_title"]
+
+        # Extract paragraphs with flexible pattern - find strings within paragraphs array
+        paragraphs = []
+
+        # First try to find the paragraphs array content even if malformed
+        paragraphs_section = re.search(r'"paragraphs":\s*\[(.*?)(?:\],\s*\[.*?)?\]', response_text, re.DOTALL)
+        if paragraphs_section:
+            paragraph_content = paragraphs_section.group(1)
+            # Extract all quoted strings from the paragraphs section
+            paragraph_matches = re.findall(r'"([^"]{20,})"', paragraph_content)  # 20+ chars for story content
+            if paragraph_matches:
+                paragraphs = paragraph_matches
+
+        # Fallback: look for any long quoted strings that look like story content
+        if not paragraphs:
+            all_quotes = re.findall(r'"([^"]{30,})"', response_text)  # 30+ chars likely story content
+            paragraphs = all_quotes[:4] if all_quotes else fallback_data["paragraphs"]
+        else:
+            paragraphs = paragraphs if paragraphs else fallback_data["paragraphs"]
+
+        # Extract choices
+        choices = []
+        choices_match = re.search(r'"choices":\s*\[(.*?)\]', response_text, re.DOTALL)
+        if choices_match:
+            choice_text = choices_match.group(1)
+            choice_matches = re.findall(r'"([^"]+)"', choice_text)
+            choices = choice_matches if len(choice_matches) >= 3 else fallback_data["choices"]
+        else:
+            choices = fallback_data["choices"]
+
+        # Extract illustration prompts
+        illustration_prompts = []
+        prompts_match = re.search(r'"illustration_prompts":\s*\[(.*?)\]', response_text, re.DOTALL)
+        if prompts_match:
+            prompts_text = prompts_match.group(1)
+            prompt_matches = re.findall(r'"([^"]+)"', prompts_text)
+            illustration_prompts = prompt_matches if len(prompt_matches) >= 2 else fallback_data["illustration_prompts"]
+        else:
+            illustration_prompts = fallback_data["illustration_prompts"]
+
+        # Extract mood
+        mood_match = re.search(r'"mood":\s*"([^"]*)"', response_text)
+        mood = mood_match.group(1) if mood_match else "happy"
+
+        # Extract educational theme
+        theme_match = re.search(r'"educational_theme":\s*"([^"]*)"', response_text)
+        educational_theme = theme_match.group(1) if theme_match else fallback_data["educational_theme"]
+
+        manual_data = {
+            "story_title": title,
+            "paragraphs": paragraphs,
+            "choices": choices,
+            "illustration_prompts": illustration_prompts,
+            "mood": mood,
+            "educational_theme": educational_theme
+        }
+
+        print(f"✅ Manual extraction successful! Title: {title}")
+        return manual_data
+
+    except Exception as extract_error:
+        print(f"❌ Manual extraction also failed: {str(extract_error)}")
+
     # If all parsing attempts fail, return fallback data
     print(f"⚠️ All JSON parsing attempts failed. Using fallback data.")
     print(f"🔍 FULL Raw response for debugging:")
@@ -269,26 +423,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         )
         
         # Parse response with robust JSON cleaning
-        fallback_story = {
-            "story_title": f"Your {theme.title()} Adventure",
-            "paragraphs": [
-                f"Once upon a time, there was a wonderful {theme} adventure waiting to unfold.",
-                "The story continues with magical moments and exciting discoveries.",
-                "Every choice you make shapes this amazing journey."
-            ],
-            "choices": [
-                "Explore the magical path",
-                "Meet new friends along the way", 
-                "Discover hidden treasures"
-            ],
-            "illustration_prompts": [
-                f"A magical {theme} adventure scene with bright colors",
-                "Friendly characters in a whimsical setting",
-                "An exciting discovery moment"
-            ],
-            "mood": "adventure",
-            "educational_theme": "courage and friendship"
-        }
+        fallback_story = generate_theme_specific_fallback(theme, age_group)
         
         story_data = clean_and_parse_json(response.text, fallback_story)
         
