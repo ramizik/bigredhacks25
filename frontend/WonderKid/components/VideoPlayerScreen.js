@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Video } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,13 +20,14 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [videoStatus, setVideoStatus] = useState('checking');
-  const [progress, setProgress] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const videoRef = useRef(null);
   const checkInterval = useRef(null);
+
+  // Initialize video player with expo-video
+  const player = useVideoPlayer(videoUrl, (player) => {
+    player.loop = false;
+    player.muted = false;
+  });
 
   useEffect(() => {
     checkVideoStatus();
@@ -148,18 +149,10 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   };
 
   const handlePlayPause = () => {
-    setPaused(!paused);
-  };
-
-  const handlePlaybackStatusUpdate = (status) => {
-    if (status.isLoaded) {
-      setDuration(status.durationMillis / 1000);
-      setCurrentTime(status.positionMillis / 1000);
-      setProgress((status.positionMillis / status.durationMillis) * 100);
-      
-      if (status.didJustFinish) {
-        setPaused(true);
-      }
+    if (player.playing) {
+      player.pause();
+    } else {
+      player.play();
     }
   };
 
@@ -167,8 +160,24 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     console.error('🎬 Video playback error:', error);
     console.error('🎬 Video URL that failed:', videoUrl);
     console.error('🎬 Error details:', JSON.stringify(error, null, 2));
-    setError(`Failed to play video: ${error?.error || 'Unknown error'}. Please try again.`);
+    setError(`Failed to play video: ${error?.message || 'Unknown error'}. Please try again.`);
   };
+
+  // Add error handling for the player
+  useEffect(() => {
+    if (player) {
+      const subscription = player.addListener('playbackError', handleVideoError);
+      return () => subscription?.remove();
+    }
+  }, [player]);
+
+  // Update player source when videoUrl changes
+  useEffect(() => {
+    if (player && videoUrl) {
+      console.log('🎬 Setting video source:', videoUrl);
+      player.replace(videoUrl);
+    }
+  }, [player, videoUrl]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -245,16 +254,13 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                 </Text>
                 
                 <View style={styles.videoWrapper}>
-                    <Video
-                        ref={videoRef}
-                        source={{ uri: videoUrl }}
+                    <VideoView
                         style={styles.video}
-                        shouldPlay={!paused}
-                        isLooping={false}
-                        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-                        onError={handleVideoError}
-                        useNativeControls={Platform.OS === 'ios'}
-                        resizeMode="contain"
+                        player={player}
+                        allowsFullscreen
+                        allowsPictureInPicture
+                        contentFit="contain"
+                        nativeControls={Platform.OS === 'ios'}
                     />
                     
                     {Platform.OS === 'android' && (
@@ -263,10 +269,10 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                           onPress={handlePlayPause}
                           style={styles.playPauseButton}
                         >
-                          <Ionicons 
-                            name={paused ? "play" : "pause"} 
-                            size={32} 
-                            color="white" 
+                          <Ionicons
+                            name={player?.playing ? "pause" : "play"}
+                            size={32}
+                            color="white"
                           />
                         </TouchableOpacity>
                       </View>
@@ -274,16 +280,9 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                 </View>
 
                 <View style={styles.progressContainer}>
-                  <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                  <View style={styles.progressBarVideo}>
-                    <View 
-                      style={[
-                        styles.progressFillVideo, 
-                        { width: `${progress}%` }
-                      ]} 
-                    />
-                  </View>
-                  <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                  <Text style={styles.timeText}>
+                    🎬 Video Player Ready
+                  </Text>
                 </View>
 
                 <Text style={styles.videoDescription}>
