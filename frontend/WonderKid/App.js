@@ -35,7 +35,7 @@ export default function App() {
                   iconName = focused ? 'person' : 'person-outline';
                 }
 
-                return <Ionicons name={iconName} size={24} color={color} />;
+                return <Ionicons name={iconName} size={32} color={color} />;
               },
               tabBarActiveTintColor: '#ffffff',
               tabBarInactiveTintColor: '#9683ec',
@@ -43,10 +43,10 @@ export default function App() {
                 backgroundColor: '#ffffff',
                 borderTopLeftRadius: 25,
                 borderTopRightRadius: 25,
-                height: 85,
-                paddingTop: 8,
-                paddingBottom: 20,
-                paddingHorizontal: 15,
+                height: 90,
+                paddingTop: 10,
+                paddingBottom: 15,
+                paddingHorizontal: 10,
                 shadowColor: '#000000',
                 shadowOffset: {
                   width: 0,
@@ -62,13 +62,13 @@ export default function App() {
                 right: 0,
               },
               tabBarItemStyle: {
-                borderRadius: 15,
-                marginHorizontal: 8,
-                marginVertical: 4,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                minHeight: 48,
-                height: 48,
+                borderRadius: 18,
+                marginHorizontal: 6,
+                marginVertical: 6,
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                minHeight: 60,
+                height: 60,
                 justifyContent: 'center',
                 alignItems: 'center',
                 flex: 1,
