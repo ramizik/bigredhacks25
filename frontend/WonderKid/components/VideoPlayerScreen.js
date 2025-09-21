@@ -288,7 +288,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                 This usually takes 2-3 minutes
               </Text>
               <Text style={styles.sceneCount}>
-                Including {sceneCount || 10} amazing scenes!
+                Including {sceneCount || 6} amazing scenes!
               </Text>
               <View style={styles.progressBar}>
                 <View 
@@ -341,7 +341,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                     </TouchableOpacity>
 
                     <Text style={styles.videoDescription}>
-                      ✨ Your personalized story video with {sceneCount || 10} scenes
+                      ✨ Your personalized story video with {sceneCount || 6} scenes
                     </Text>
                   </View>
                 ) : (
@@ -383,7 +383,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
 
                 {!isExpoGo && (
                   <Text style={styles.videoDescription}>
-                    ✨ Your personalized story video with {sceneCount || 10} scenes
+                    ✨ Your personalized story video with {sceneCount || 6} scenes
                   </Text>
                 )}
               </>

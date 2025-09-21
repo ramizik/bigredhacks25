@@ -791,12 +791,12 @@ async def generate_story_video(request: VideoGenerationRequest):
             logger.error(f"❌ Failed to get story status for video generation: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to get story status: {str(e)}")
         
-        if status["scene_count"] < 10 and not request.manual_trigger:
-            logger.warning(f"⚠️ Story {request.story_id} not ready for video: {status['scene_count']}/10 scenes")
+        if status["scene_count"] < 6 and not request.manual_trigger:
+            logger.warning(f"⚠️ Story {request.story_id} not ready for video: {status['scene_count']}/6 scenes")
             return {
                 "status": "not_ready",
-                "message": f"Story needs 10 scenes for video. Current: {status['scene_count']}/10",
-                "scenes_needed": 10 - status["scene_count"]
+                "message": f"Story needs 6 scenes for video. Current: {status['scene_count']}/6",
+                "scenes_needed": 6 - status["scene_count"]
             }
         
         # Check if video generation is already in progress
@@ -996,7 +996,7 @@ async def get_video_status(story_id: str):
                     "status": "completed",
                     "generation_in_progress": False,
                     "video_url": f"/api/videos/{video_file}" if video_file else None,
-                    "scenes_included": task_status.get("scenes_included", 10),
+                    "scenes_included": task_status.get("scenes_included", 6),
                     "message": "✅ Video generation completed!",
                     "gcs_url": gcs_url  # Include GCS URL if available
                 }
@@ -1054,7 +1054,7 @@ async def get_video_status(story_id: str):
                         "status": "completed",
                         "generation_in_progress": False,
                         "video_url": video_url,
-                        "scenes_included": task_status.get("scenes_included", 10),
+                        "scenes_included": task_status.get("scenes_included", 6),
                         "message": "✅ Video generation completed!",
                         "gcs_url": gcs_url  # Include GCS URL if available
                     }
@@ -1109,7 +1109,7 @@ async def get_video_status(story_id: str):
                         "status": "completed",
                         "generation_in_progress": False,
                         "video_url": f"/api/videos/{video_filename}",  # Provide local URL for Expo compatibility
-                        "scenes_included": 10,
+                        "scenes_included": 6,
                         "message": "✅ Video found and ready to play!",
                         "gcs_url": gcs_url
                     }
@@ -1121,7 +1121,7 @@ async def get_video_status(story_id: str):
                 "status": "completed",
                 "generation_in_progress": False,
                 "video_url": f"/api/videos/{video_filename}",
-                "scenes_included": 10,
+                "scenes_included": 6,
                 "message": "✅ Video found locally!"
             }
         
@@ -1165,7 +1165,7 @@ async def get_video_status(story_id: str):
                     "status": "completed",
                     "generation_in_progress": False,
                     "video_url": None,  # Don't use local URL if GCS is available
-                    "scenes_included": task_data.get("scenes_included", 10),
+                    "scenes_included": task_data.get("scenes_included", 6),
                     "message": "✅ Video ready from cloud storage!",
                     "gcs_url": gcs_url
                 }
@@ -1174,7 +1174,7 @@ async def get_video_status(story_id: str):
                     "status": "completed",
                     "generation_in_progress": False,
                     "video_url": f"/api/videos/{video_file}",
-                    "scenes_included": task_data.get("scenes_included", 10),
+                    "scenes_included": task_data.get("scenes_included", 6),
                     "message": "✅ Video found from recent generation!",
                     "gcs_url": None
                 }

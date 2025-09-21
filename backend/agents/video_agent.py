@@ -391,6 +391,49 @@ def extract_story_themes(story_scenes: List[Dict], story_theme: str) -> Dict:
         "safe_theme": story_theme.replace(" ", "_").lower()[:20]  # Truncated safe version
     }
 
+def extract_story_text_summary(story_scenes: List[Dict]) -> str:
+    """Extract key story text elements for video context"""
+    
+    if not story_scenes:
+        return "Magical adventure story"
+    
+    # Extract text from all scenes
+    story_texts = []
+    for scene in story_scenes:
+        text = scene.get("text", "")
+        if text:
+            story_texts.append(text)
+    
+    if not story_texts:
+        return "Magical adventure story"
+    
+    # Create a concise summary (max 200 chars for video prompt)
+    full_text = " ".join(story_texts)
+    
+    # Extract key elements
+    key_elements = []
+    
+    # Look for character mentions
+    if any(word in full_text.lower() for word in ["princess", "knight", "dragon", "wizard", "fairy"]):
+        key_elements.append("magical characters")
+    
+    # Look for setting mentions  
+    if any(word in full_text.lower() for word in ["castle", "forest", "mountain", "ocean", "space"]):
+        key_elements.append("fantastic setting")
+    
+    # Look for action elements
+    if any(word in full_text.lower() for word in ["adventure", "journey", "quest", "discovery"]):
+        key_elements.append("exciting adventure")
+    
+    # Create summary
+    if key_elements:
+        summary = f"Story featuring {', '.join(key_elements[:2])}"
+    else:
+        summary = "Magical children's story"
+    
+    # Keep it concise for video prompt
+    return summary[:150] + "..." if len(summary) > 150 else summary
+
 def generate_comprehensive_story_video(
     story_scenes: List[Dict],
     story_theme: str,
@@ -457,8 +500,11 @@ def generate_comprehensive_story_video(
             logger.info(f"🎬 Falling back to direct video generation for story {story_id}")
             return generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
         
-        # Create SHORT, safe video prompt following DD's successful approach
+        # Create enhanced video prompt with story text context
+        story_text_summary = extract_story_text_summary(story_scenes)
+        
         video_prompt = f"""EPIC CHILDREN'S {story_themes['theme_category'].upper()}: {story_themes['safe_theme']}
+Story Context: {story_text_summary}
 Ultimate magical {story_themes['theme_category']} conclusion
 Cinematic masterpiece, {story_themes['mood']} crescendo, heartwarming resolution,
 colorful children's storybook animation with maximum wonder and joy"""
@@ -482,13 +528,24 @@ colorful children's storybook animation with maximum wonder and joy"""
         
         logger.info(f"💾 Video metadata stored for story {story_id}")
         
-        # TEMPORARY: Skip image seed to test text-only generation
-        logger.info(f"🧪 TESTING MODE: Skipping image seed to isolate text prompt issue")
-        logger.info(f"🎨 Would use seed image: {seed_image}")
-        logger.info(f"🚀 Calling generate_direct_story_video instead...")
+        # Generate video with seed image for better visual consistency
+        logger.info(f"🎨 Using seed image for video generation: {seed_image}")
+        logger.info(f"🚀 Calling generate_video_from_image_seed...")
         
-        # Use direct video generation (no image) for testing
-        direct_generation_result = generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
+        # Use image seed video generation for better visual consistency
+        video_file = generate_video_from_image_seed(video_prompt, seed_image, story_id)
+        
+        if video_file:
+            logger.info(f"✅ Video generated successfully with seed image: {video_file}")
+            direct_generation_result = {
+                "status": "success",
+                "generated_file": video_file,
+                "video_type": "image_seeded",
+                "seed_image_used": seed_image
+            }
+        else:
+            logger.warning(f"⚠️ Image seed video generation failed, falling back to direct generation")
+            direct_generation_result = generate_direct_story_video(story_scenes, story_theme, story_id, age_group)
         
         if direct_generation_result.get("status") == "success":
             # Update metadata

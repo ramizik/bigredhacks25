@@ -109,13 +109,13 @@ class StoryState:
         
         logger.info(f"📖 Scene {self.scene_count} added to story")
         
-        # Check if we've reached 10 iterations for video generation
-        if self.scene_count == 10 and not self.video_generation_triggered:
-            logger.info("🎬 Story reached 10 iterations - triggering video generation!")
+        # Check if we've reached 6 iterations for video generation
+        if self.scene_count == 6 and not self.video_generation_triggered:
+            logger.info("🎬 Story reached 6 iterations - triggering video generation!")
             self.trigger_video_generation()
     
     def trigger_video_generation(self):
-        """Trigger comprehensive video generation after 10 iterations"""
+        """Trigger comprehensive video generation after 6 iterations"""
         if VIDEO_AGENT_AVAILABLE and not self.video_generation_triggered:
             self.video_generation_triggered = True
             logger.info(f"🎬 Initiating comprehensive video generation for story {self.story_id}")
@@ -126,7 +126,7 @@ class StoryState:
                 "video_trigger": True,
                 "scenes_ready": len(self.story_scenes),
                 "images_available": len(self.generated_images),
-                "message": "🎬 Your story video will be generated with all 10 scenes!"
+                "message": "🎬 Your story video will be generated with all 6 scenes!"
             }
         return None
 
@@ -478,7 +478,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             image_file=image_file
         )
         
-        logger.info(f"📚 Story initialized - ID: {story_state.story_id}, Scenes: {story_state.scene_count}/10")
+        logger.info(f"📚 Story initialized - ID: {story_state.story_id}, Scenes: {story_state.scene_count}/6")
         
         return {
             "status": "success",
@@ -489,8 +489,8 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             "image_generation": image_result,
             "story_progress": {
                 "scene_count": story_state.scene_count,
-                "video_at": 10,
-                "progress_percentage": (story_state.scene_count / 10) * 100
+                "video_at": 6,
+                "progress_percentage": (story_state.scene_count / 6) * 100
             }
         }
         
@@ -519,7 +519,7 @@ def continue_story_with_choice(choice: str) -> Dict:
     
     try:
         print(f"📖 Continuing story with choice: {choice}")
-        logger.info(f"📖 Story continuation - Scene {story_state.scene_count + 1}/10")
+        logger.info(f"📖 Story continuation - Scene {story_state.scene_count + 1}/6")
         
         # Add choice to history
         story_state.user_choices_made.append(choice)
@@ -635,13 +635,13 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             image_file=image_file
         )
         
-        # Check if video generation should be triggered (at 10 scenes)
+        # Check if video generation should be triggered (at 6 scenes)
         video_trigger_info = None
-        if story_state.scene_count == 10 and story_state.video_generation_triggered:
+        if story_state.scene_count == 6 and story_state.video_generation_triggered:
             # Video was just triggered in this iteration, provide trigger info
             video_trigger_info = {
                 "video_triggered": True,
-                "message": "🎬 Congratulations! Your story has reached 10 scenes. A magical video is being created!",
+                "message": "🎬 Congratulations! Your story has reached 6 scenes. A magical video is being created!",
                 "scenes_included": story_state.scene_count,
                 "images_available": len(story_state.generated_images)
             }
@@ -660,8 +660,8 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
             "image_generation": image_result,
             "story_progress": {
                 "scene_count": story_state.scene_count,
-                "video_at": 10,
-                "progress_percentage": min((story_state.scene_count / 10) * 100, 100),
+                "video_at": 6,
+                "progress_percentage": min((story_state.scene_count / 6) * 100, 100),
                 "video_trigger": video_trigger_info
             }
         }
@@ -676,7 +676,7 @@ IMPORTANT: Respond with ONLY valid JSON. No additional text before or after.
         raise Exception(error_msg)
 
 def generate_story_video_async() -> Dict:
-    """Generate comprehensive story video with all 10 scenes"""
+    """Generate comprehensive story video with all 6 scenes"""
     if not VIDEO_AGENT_AVAILABLE:
         logger.error("❌ Video generation agent not available")
         return {
@@ -781,9 +781,9 @@ def get_story_status() -> Dict:
         "images_generated": len(story_state.generated_images),
         "video_progress": {
             "current_scene": story_state.scene_count,
-            "scenes_needed_for_video": 10,
-            "ready_for_video": story_state.scene_count >= 10,
-            "percentage_to_video": min((story_state.scene_count / 10) * 100, 100)
+            "scenes_needed_for_video": 6,
+            "ready_for_video": story_state.scene_count >= 6,
+            "percentage_to_video": min((story_state.scene_count / 6) * 100, 100)
         }
     }
 
