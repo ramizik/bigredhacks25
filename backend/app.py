@@ -535,6 +535,8 @@ async def generate_story(request: StoryThemeRequest):
         # Get story progress info
         story_progress = agent_result.get("story_progress", {})
         
+        logger.info(f"📚 Returning initial story with ID: {story_id}")
+        
         return StoryResponse(
             story_id=story_id,
             paragraphs=story_data.get("paragraphs", []),
@@ -620,6 +622,7 @@ async def create_story(request: StoryThemeRequest):
         }
         
         logger.info(f"✅ AI story generated: {story_data.get('story_title', 'Untitled')}")
+        logger.info(f"📚 Returning continued story with ID: {story_state.story_id}")
         return response
         
     except Exception as e:
@@ -706,8 +709,9 @@ async def continue_story(request: StoryChoiceRequest):
             }
         )
 
-# Generate story video endpoint
+# Generate story video endpoint (with aliases for compatibility)
 @app.post("/api/generate-story-video")
+@app.post("/api/generate-video")  # Alias for frontend compatibility
 async def generate_story_video(request: VideoGenerationRequest):
     """Manually trigger or check status of story video generation"""
     logger.info(f"🎬 Video generation requested for story {request.story_id}")
@@ -777,7 +781,9 @@ async def test_gcs_videos():
     result = {
         "tasks": {},
         "gcs_status": "unknown",
-        "bucket_name": "wonderkid-demo-videos"
+        "bucket_name": "wonderkid-demo-videos",
+        "current_story_id": story_state.story_id if AGENT_AVAILABLE else None,
+        "story_state": get_story_status() if AGENT_AVAILABLE else None
     }
     
     # List all video tasks
@@ -922,11 +928,15 @@ async def get_video_status(story_id: str):
         
         # Fallback: Check filesystem for video files matching story pattern
         import glob
+        # Also check for the actual story ID from story state
+        actual_story_id = get_story_status().get('story_id', '')
         video_patterns = [
             f"wonderkid*{story_id}*.mp4",
+            f"wonderkid*{actual_story_id}*.mp4" if actual_story_id else None,
             f"wonderkid*video*.mp4",  # Broader pattern
             "wonderkid*.mp4"  # Even broader for recent files
         ]
+        video_patterns = [p for p in video_patterns if p]  # Remove None values
         
         found_videos = []
         for pattern in video_patterns:
@@ -940,12 +950,39 @@ async def get_video_status(story_id: str):
             video_filename = os.path.basename(latest_video)
             logger.info(f"✅ Found video file on filesystem: {video_filename}")
             
+            # Get GCS URL for the video
+            gcs_url = None
+            try:
+                from gcs_helper import get_gcs_manager
+                gcs = get_gcs_manager()
+                
+                # Check if video exists in GCS, if not upload it
+                if not gcs.video_exists(video_filename):
+                    logger.info(f"☁️ Uploading found video to GCS...")
+                    gcs_url = gcs.upload_video(latest_video)
+                else:
+                    gcs_url = gcs.get_video_url(video_filename)
+                    
+                if gcs_url:
+                    logger.info(f"☁️ GCS URL for found video: {gcs_url}")
+                    return VideoStatusResponse(
+                        status="completed",
+                        generation_in_progress=False,
+                        video_url=None,  # Don't use local serving
+                        scenes_included=10,
+                        message="✅ Video found and ready to play!",
+                        gcs_url=gcs_url
+                    )
+            except Exception as e:
+                logger.error(f"❌ Failed to get GCS URL for found video: {str(e)}")
+            
+            # Fallback if GCS fails
             return VideoStatusResponse(
                 status="completed",
                 generation_in_progress=False,
                 video_url=f"/api/videos/{video_filename}",
                 scenes_included=10,
-                message="✅ Video found and ready to play!"
+                message="✅ Video found locally!"
             )
         
         # Check if story has a generated video
@@ -960,21 +997,41 @@ async def get_video_status(story_id: str):
                 message="✅ Video available!"
             )
         
-        # Final fallback: Check if ANY video task is completed
+        # Final fallback: Check if ANY video task is completed (most recent first)
         logger.info(f"📊 No video found for story {story_id}, checking for ANY completed video...")
-        for task_id, task_data in VIDEO_GENERATION_TASKS.items():
-            if task_data.get("status") == "success" and task_data.get("generated_file"):
-                logger.info(f"✅ Found completed video with task_id: {task_id}")
-                video_file = task_data.get("generated_file")
-                gcs_url = task_data.get("gcs_url")
-                
+        
+        # Sort tasks by timestamp to get most recent first
+        sorted_tasks = sorted(
+            [(k, v) for k, v in VIDEO_GENERATION_TASKS.items() if v.get("status") == "success"],
+            key=lambda x: x[1].get('timestamp', ''),
+            reverse=True
+        )
+        
+        if sorted_tasks:
+            task_id, task_data = sorted_tasks[0]
+            logger.info(f"✅ Found most recent completed video with task_id: {task_id}")
+            video_file = task_data.get("generated_file")
+            gcs_url = task_data.get("gcs_url")
+            
+            # Prioritize GCS URL over local file
+            if gcs_url:
+                logger.info(f"☁️ Returning GCS URL for most recent video: {gcs_url}")
                 return VideoStatusResponse(
                     status="completed",
                     generation_in_progress=False,
-                    video_url=f"/api/videos/{video_file}" if video_file else None,
+                    video_url=None,  # Don't use local URL if GCS is available
+                    scenes_included=task_data.get("scenes_included", 10),
+                    message="✅ Video ready from cloud storage!",
+                    gcs_url=gcs_url
+                )
+            elif video_file:
+                return VideoStatusResponse(
+                    status="completed",
+                    generation_in_progress=False,
+                    video_url=f"/api/videos/{video_file}",
                     scenes_included=task_data.get("scenes_included", 10),
                     message="✅ Video found from recent generation!",
-                    gcs_url=gcs_url
+                    gcs_url=None
                 )
         
         logger.info(f"📊 No video found anywhere for story {story_id}")

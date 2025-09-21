@@ -1,15 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
-  SafeAreaView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -17,7 +17,6 @@ const API_URL = 'https://bigredhacks25-331813490179.us-east4.run.app';
 
 const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   const [videoUrl, setVideoUrl] = useState(null);
-  const [videoData, setVideoData] = useState(null); // For base64 video data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [videoStatus, setVideoStatus] = useState('checking');
@@ -39,7 +38,7 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
         // Update progress animation
         setGenerationProgress((prev) => (prev + 5) % 100);
       }
-    }, 5000); // Check every 5 seconds
+    }, 3000); // Check every 3 seconds
 
     return () => {
       if (checkInterval.current) {
@@ -47,88 +46,6 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
       }
     };
   }, [storyId]);
-
-  const loadVideoData = async (videoUrl, gcsUrl = null) => {
-    try {
-      console.log('🎬 === LOADING VIDEO DATA ===');
-      console.log('🎬 Video URL from status:', videoUrl);
-      console.log('☁️ GCS URL backup:', gcsUrl);
-      console.log('🎬 Full URL to fetch:', videoUrl ? `${API_URL}${videoUrl}` : 'No local URL');
-      
-      // If we have a video URL, try to fetch from the API first
-      if (videoUrl) {
-        const response = await fetch(`${API_URL}${videoUrl}`);
-        console.log('📡 Video fetch response status:', response.status, response.ok);
-        console.log('📡 Response headers:', response.headers);
-        
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          console.log('📡 Content-Type:', contentType);
-          
-          if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
-            console.log('📊 JSON response received:', {
-              status: data.status,
-              has_video_data: !!data.video_data,
-              has_gcs_url: !!data.gcs_url,
-              size_mb: data.size_mb,
-              filename: data.filename
-            });
-            
-            if (data.status === 'success' && data.video_data) {
-              // Video is served as base64 data
-              console.log('✅ Video data received as base64:', data.size_mb, 'MB');
-              console.log('🎬 Base64 data length:', data.video_data.length);
-              setVideoData(data.video_data);
-              const videoDataUrl = `data:${data.mime_type};base64,${data.video_data}`;
-              console.log('🎬 Setting video URL as data URL, first 100 chars:', videoDataUrl.substring(0, 100));
-              setVideoUrl(videoDataUrl);
-              return; // Success - exit early
-            } else if (data.gcs_url) {
-              console.log('☁️ Using GCS URL from response:', data.gcs_url);
-              setVideoUrl(data.gcs_url);
-              return; // Success - exit early
-            } else {
-              console.log('❌ JSON response missing video data and GCS URL');
-              // Fallback to direct URL
-              console.log('🔄 Using direct video URL');
-              setVideoUrl(`${API_URL}${videoUrl}`);
-            }
-          } else {
-            // Not JSON, assume it's the video file directly
-            console.log('🔄 Response is not JSON, using direct URL');
-            setVideoUrl(`${API_URL}${videoUrl}`);
-          }
-        } else {
-          console.error('❌ Video fetch failed with status:', response.status);
-          throw new Error(`HTTP ${response.status}`);
-        }
-      } else if (gcsUrl) {
-        // No local URL, but we have GCS URL
-        console.log('☁️ No local URL available, using GCS URL directly:', gcsUrl);
-        setVideoUrl(gcsUrl);
-        return;
-      } else {
-        console.error('❌ No video URL available');
-        throw new Error('No video URL provided');
-      }
-    } catch (err) {
-      console.error('❌ Error loading video data:', err);
-      console.error('Stack:', err.stack);
-      
-      // Try GCS URL as final fallback
-      if (gcsUrl) {
-        console.log('☁️ Final fallback: Using GCS URL directly:', gcsUrl);
-        setVideoUrl(gcsUrl);
-      } else if (videoUrl) {
-        console.log('🔄 Fallback: Using direct video URL');
-        setVideoUrl(`${API_URL}${videoUrl}`);
-      } else {
-        console.error('❌ No fallback options available');
-        setError('Failed to load video');
-      }
-    }
-  };
 
   const checkVideoStatus = async () => {
     console.log(`🔍 Checking video status for story: ${storyId}`);
@@ -141,24 +58,43 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
       
       setVideoStatus(data.status);
       
-      if (data.status === 'completed' && (data.video_url || data.gcs_url)) {
+      if (data.status === 'completed') {
         console.log('✅ Video completed!');
-        console.log('📁 Local URL:', data.video_url || 'None');
         console.log('☁️ GCS URL:', data.gcs_url || 'None');
+        console.log('📁 Local URL:', data.video_url || 'None');
+        console.log('📋 Full response:', JSON.stringify(data));
         
-        // Prefer GCS URL if available for better reliability
+        // Always prefer GCS URL for reliability
         if (data.gcs_url) {
           console.log('🎯 Using GCS URL directly for video playback');
+          console.log('🌐 Full GCS URL:', data.gcs_url);
+          
+          // Set the video URL directly - GCS URLs are public
           setVideoUrl(data.gcs_url);
           setLoading(false);
+          setError(null);
+          
+          if (checkInterval.current) {
+            clearInterval(checkInterval.current);
+          }
         } else if (data.video_url) {
-          console.log('🎯 Loading video from API endpoint');
-          // Try to load video data (base64 or URL)
-          await loadVideoData(data.video_url, data.gcs_url);
+          // Fallback to local URL only if no GCS URL
+          console.log('⚠️ No GCS URL, falling back to local endpoint');
+          const fullUrl = data.video_url.startsWith('http') 
+            ? data.video_url 
+            : `${API_URL}${data.video_url}`;
+          setVideoUrl(fullUrl);
           setLoading(false);
-        }
-        if (checkInterval.current) {
-          clearInterval(checkInterval.current);
+          setError(null);
+          
+          if (checkInterval.current) {
+            clearInterval(checkInterval.current);
+          }
+        } else {
+          console.error('❌ No video URL available in response');
+          console.error('📋 Response data:', data);
+          setError('Video URL not available');
+          setLoading(false);
         }
       } else if (data.status === 'processing') {
         // Keep loading, video is being generated
@@ -185,55 +121,51 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
   const triggerVideoGeneration = async () => {
     try {
       console.log('🎬 Triggering video generation for story:', storyId);
-      
-      const response = await fetch(`${API_URL}/api/generate-story-video`, {
+      const response = await fetch(`${API_URL}/api/generate-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           story_id: storyId,
-          manual_trigger: sceneCount < 10 
-        }),
+          manual_trigger: true
+        })
       });
-      
+
       const data = await response.json();
+      console.log('📹 Video generation response:', data);
       
-      if (data.status === 'started' || data.status === 'processing') {
+      if (data.status === 'started') {
         setVideoStatus('processing');
-        Alert.alert(
-          '🎬 Video Generation Started!',
-          'Your story video is being created. This will take 2-3 minutes. You can continue reading while we prepare your magical video!',
-          [{ text: 'OK' }]
-        );
-      } else if (data.status === 'not_ready') {
-        setError(`Need ${10 - sceneCount} more scenes for video generation`);
-        setLoading(false);
+      } else {
+        console.error('Failed to trigger video generation:', data.message);
+        setError(data.message || 'Failed to start video generation');
       }
     } catch (err) {
-      console.error('❌ Error triggering video generation:', err);
+      console.error('Error triggering video generation:', err);
       setError('Failed to start video generation');
-      setLoading(false);
     }
   };
 
-      const onVideoLoad = (status) => {
-        if (status.isLoaded) {
-            setDuration(status.durationMillis / 1000);
-            console.log('✅ Video loaded, duration:', status.durationMillis / 1000);
-        }
-    };
-
-  const onVideoError = (error) => {
-    console.error('❌ Video playback error:', error);
-    console.error('🔍 Video URL that failed:', videoUrl);
-    console.error('🔍 Video data available:', !!videoData);
-    setError('Failed to play video. Try refreshing or check your connection.');
-    setLoading(false);
+  const handlePlayPause = () => {
+    setPaused(!paused);
   };
 
-  const togglePlayPause = () => {
-    setPaused(!paused);
+  const handlePlaybackStatusUpdate = (status) => {
+    if (status.isLoaded) {
+      setDuration(status.durationMillis / 1000);
+      setCurrentTime(status.positionMillis / 1000);
+      setProgress((status.positionMillis / status.durationMillis) * 100);
+      
+      if (status.didJustFinish) {
+        setPaused(true);
+      }
+    }
+  };
+
+  const handleVideoError = (error) => {
+    console.error('🎬 Video playback error:', error);
+    setError('Failed to play video. Please try again.');
   };
 
   const formatTime = (seconds) => {
@@ -242,47 +174,73 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderGeneratingView = () => (
-    <View style={styles.generatingContainer}>
-      <Text style={styles.generatingTitle}>🎬 Creating Your Story Video!</Text>
-      
-      <View style={styles.progressContainer}>
-        <ActivityIndicator size="large" color="#FFD700" />
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill,
-              { width: `${generationProgress}%` }
-            ]} 
-          />
-        </View>
-        <Text style={styles.progressText}>
-          {Math.min(generationProgress, 95)}% Complete
-        </Text>
-      </View>
-      
-      <Text style={styles.generatingMessage}>
-        Your magical video is being generated with all {sceneCount || 10} scenes!
-      </Text>
-      <Text style={styles.generatingSubMessage}>
-        This usually takes 2-3 minutes. Feel free to continue reading while we work our magic! ✨
-      </Text>
-      
-      <TouchableOpacity style={styles.continueButton} onPress={onClose}>
-        <Text style={styles.continueButtonText}>Continue Reading 📖</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const retryVideoGeneration = () => {
+    setError(null);
+    setLoading(true);
+    setVideoStatus('checking');
+    checkVideoStatus();
+  };
 
-          const renderVideoPlayer = () => (
-            <View style={styles.videoContainer}>
-                <Text style={styles.title}>🎬 Your Story Video</Text>
-                
-                {videoData && (
-                  <Text style={styles.videoInfo}>
-                    📊 Video loaded: {videoData.length > 1000000 ? `${Math.round(videoData.length / 1000000)}MB` : `${Math.round(videoData.length / 1000)}KB`} base64 data
-                  </Text>
-                )}
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={onClose}
+          style={styles.closeButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Your Story Video</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6B46C1" />
+          <Text style={styles.loadingText}>
+            {videoStatus === 'processing' 
+              ? `Creating your magical video... ${Math.round(generationProgress)}%`
+              : 'Loading your video...'}
+          </Text>
+          {videoStatus === 'processing' && (
+            <>
+              <Text style={styles.subText}>
+                This usually takes 2-3 minutes
+              </Text>
+              <Text style={styles.sceneCount}>
+                Including {sceneCount || 10} amazing scenes!
+              </Text>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${generationProgress}%` }
+                  ]} 
+                />
+              </View>
+            </>
+          )}
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color="#EF4444" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={retryVideoGeneration}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.videoSection}>
+            {videoUrl && (
+              <>
+                <Text style={styles.videoInfo}>
+                  🎬 Playing from: {videoUrl.includes('storage.googleapis.com') ? 'Google Cloud' : 'Server'}
+                </Text>
                 
                 <View style={styles.videoWrapper}>
                     <Video
@@ -291,100 +249,50 @@ const VideoPlayerScreen = ({ storyId, onClose, sceneCount }) => {
                         style={styles.video}
                         shouldPlay={!paused}
                         isLooping={false}
-                        onLoad={onVideoLoad}
-                        onPlaybackStatusUpdate={(status) => {
-                            if (status.isLoaded) {
-                                setDuration(status.durationMillis / 1000);
-                                setCurrentTime(status.positionMillis / 1000);
-                                if (status.durationMillis > 0) {
-                                    setProgress((status.positionMillis / status.durationMillis) * 100);
-                                }
-                            }
-                        }}
-                        onError={onVideoError}
+                        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+                        onError={handleVideoError}
+                        useNativeControls={Platform.OS === 'ios'}
                         resizeMode="contain"
-                        useNativeControls={false}
                     />
                     
-                    {/* Custom Controls Overlay */}
-                    <TouchableOpacity 
-                        style={styles.videoOverlay}
-                        onPress={togglePlayPause}
-                        activeOpacity={0.9}
-                    >
-                        {paused && (
-                            <View style={styles.playButton}>
-                                <Text style={styles.playButtonText}>▶</Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                    {Platform.OS === 'android' && (
+                      <View style={styles.controls}>
+                        <TouchableOpacity 
+                          onPress={handlePlayPause}
+                          style={styles.playPauseButton}
+                        >
+                          <Ionicons 
+                            name={paused ? "play" : "pause"} 
+                            size={32} 
+                            color="white" 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
                 </View>
-      
-      {/* Video Controls */}
-      <View style={styles.controls}>
-        <TouchableOpacity style={styles.controlButton} onPress={togglePlayPause}>
-          <Text style={styles.controlButtonText}>{paused ? '▶️' : '⏸️'}</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </Text>
-        </View>
-        
-        <View style={styles.progressBarContainer}>
-          <View style={styles.videoProgressBar}>
-            <View 
-              style={[
-                styles.videoProgressFill,
-                { width: `${progress}%` }
-              ]} 
-            />
-          </View>
-        </View>
-      </View>
-      
-      <Text style={styles.videoInfo}>
-        This video combines all {sceneCount || 10} scenes from your story journey! 🌟
-      </Text>
-      
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Text style={styles.closeButtonText}>Back to Story</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
-  const renderError = () => (
-    <View style={styles.errorContainer}>
-      <Text style={styles.errorTitle}>😔 Video Not Available</Text>
-      <Text style={styles.errorMessage}>{error}</Text>
-      
-      {videoStatus === 'not_started' && sceneCount >= 10 && (
-        <TouchableOpacity style={styles.retryButton} onPress={triggerVideoGeneration}>
-          <Text style={styles.retryButtonText}>Generate Video 🎬</Text>
-        </TouchableOpacity>
+                <View style={styles.progressContainer}>
+                  <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                  <View style={styles.progressBarVideo}>
+                    <View 
+                      style={[
+                        styles.progressFillVideo, 
+                        { width: `${progress}%` }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                </View>
+
+                <Text style={styles.videoDescription}>
+                  ✨ Your personalized story video with {sceneCount || 10} scenes
+                </Text>
+              </>
+            )}
+          </View>
+        </ScrollView>
       )}
-      
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Text style={styles.closeButtonText}>Back to Story</Text>
-      </TouchableOpacity>
     </View>
-  );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {loading && videoStatus === 'processing' && renderGeneratingView()}
-        {!loading && videoUrl && renderVideoPlayer()}
-        {!loading && error && renderError()}
-        {loading && videoStatus === 'checking' && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFD700" />
-            <Text style={styles.loadingText}>Checking video status...</Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
   );
 };
 
@@ -393,16 +301,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 10,
+    backgroundColor: '#1a1a2e',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  closeButton: {
+    padding: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    textAlign: 'center',
+    flex: 1,
+    fontFamily: 'Comic Sans MS',
+  },
+  placeholder: {
+    width: 50,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
     color: '#FFD700',
@@ -410,15 +338,63 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontFamily: 'Comic Sans MS',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 20,
+  subText: {
+    color: '#9CA3AF',
+    fontSize: 14,
     textAlign: 'center',
+    marginTop: 10,
     fontFamily: 'Comic Sans MS',
   },
-  videoContainer: {
+  sceneCount: {
+    color: '#FFD700',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 5,
+    fontFamily: 'Comic Sans MS',
+  },
+  progressBar: {
+    width: '100%',
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  progressFill: {
+    height: 10,
+    backgroundColor: '#FFD700',
+    borderRadius: 5,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'Comic Sans MS',
+  },
+  retryButton: {
+    backgroundColor: '#FFD700',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: '#1a1a2e',
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'Comic Sans MS',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  videoSection: {
     width: '100%',
     alignItems: 'center',
   },
@@ -434,63 +410,40 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  videoOverlay: {
+  controls: {
     position: 'absolute',
-    top: 0,
+    bottom: 20,
     left: 0,
     right: 0,
-    bottom: 0,
+    flexDirection: 'row',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  playPauseButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 25,
+    padding: 10,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-  },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 215, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playButtonText: {
-    fontSize: 36,
-    color: '#1a1a2e',
-  },
-  controls: {
     width: '100%',
     marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  controlButton: {
-    padding: 15,
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-    marginBottom: 15,
-    alignSelf: 'center',
-  },
-  controlButtonText: {
-    fontSize: 24,
-    color: '#1a1a2e',
-  },
-  timeContainer: {
-    alignItems: 'center',
-    marginBottom: 10,
   },
   timeText: {
     color: '#FFD700',
     fontSize: 16,
     fontFamily: 'Comic Sans MS',
   },
-  progressBarContainer: {
-    width: '100%',
-    paddingHorizontal: 10,
-  },
-  videoProgressBar: {
+  progressBarVideo: {
+    width: '60%',
     height: 8,
     backgroundColor: 'rgba(255, 215, 0, 0.3)',
     borderRadius: 4,
     overflow: 'hidden',
   },
-  videoProgressFill: {
+  progressFillVideo: {
     height: '100%',
     backgroundColor: '#FFD700',
     borderRadius: 4,
@@ -500,115 +453,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
-    marginHorizontal: 20,
-    fontFamily: 'Comic Sans MS',
-  },
-  generatingContainer: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  generatingTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginBottom: 30,
-    textAlign: 'center',
-    fontFamily: 'Comic Sans MS',
-  },
-  progressContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  progressBar: {
-    width: screenWidth - 80,
-    height: 20,
-    backgroundColor: 'rgba(255, 215, 0, 0.3)',
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-  },
-  progressText: {
-    color: '#FFD700',
-    fontSize: 16,
-    marginTop: 10,
-    fontFamily: 'Comic Sans MS',
-  },
-  generatingMessage: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    textAlign: 'center',
     marginBottom: 10,
     fontFamily: 'Comic Sans MS',
   },
-  generatingSubMessage: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 20,
-    fontFamily: 'Comic Sans MS',
-  },
-  continueButton: {
-    backgroundColor: '#10B981',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginTop: 10,
-  },
-  continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Comic Sans MS',
-  },
-  errorContainer: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#EF4444',
-    marginBottom: 20,
-    fontFamily: 'Comic Sans MS',
-  },
-  errorMessage: {
+  videoDescription: {
     color: '#9CA3AF',
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 30,
-    fontFamily: 'Comic Sans MS',
-  },
-  retryButton: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginBottom: 20,
-  },
-  retryButtonText: {
-    color: '#1a1a2e',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Comic Sans MS',
-  },
-  closeButton: {
-    backgroundColor: '#4B5563',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
     marginTop: 20,
-  },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
     fontFamily: 'Comic Sans MS',
   },
 });

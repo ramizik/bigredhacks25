@@ -2,21 +2,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Dimensions,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import VideoPlayerScreen from './VideoPlayerScreen';
 
@@ -110,7 +110,7 @@ export default function StoryScreen() {
     
     try {
       // Call backend API
-      const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/create-story', {
+      const response = await fetch('https://bigredhacks25-331813490179.us-east4.run.app/api/generate-story', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,6 +134,9 @@ export default function StoryScreen() {
       console.log('🎨 Image Generated:', result.image_generated);
       
       // Use real AI-generated story data
+      const storyId = result.story_id || storyData.storyId || `story_${Date.now()}`;
+      console.log(`📚 Story created with backend ID: ${result.story_id}, using ID: ${storyId}`);
+      
       const aiStory = {
         paragraphs: result.paragraphs || [],
         currentParagraph: 0,
@@ -146,7 +149,7 @@ export default function StoryScreen() {
         illustrationPrompts: result.illustration_prompts || [],
         imageUrl: result.image_url || null,
         imageGenerated: result.image_generated || false,
-        storyId: result.story_id || `story_${Date.now()}`
+        storyId: storyId
       };
       
       setStoryData(aiStory);
@@ -221,6 +224,10 @@ export default function StoryScreen() {
       console.log('🎨 New Image Generated:', result.image_generated);
       
       // Update story data with AI-generated continuation
+      // Keep consistent story ID
+      const currentStoryId = result.story_id || prev.storyId;
+      console.log(`📖 Continuing story with ID: ${currentStoryId}, iteration: ${prev.iteration + 1}`);
+      
       setStoryData(prev => ({
         ...prev,
         paragraphs: result.paragraphs || prev.paragraphs,
@@ -229,7 +236,7 @@ export default function StoryScreen() {
         iteration: prev.iteration + 1,
         imageUrl: result.image_url || prev.imageUrl,
         imageGenerated: result.image_generated || false,
-        storyId: result.story_id || prev.storyId
+        storyId: currentStoryId
       }));
       
       // Check for video generation trigger at 10th iteration
@@ -301,10 +308,12 @@ export default function StoryScreen() {
     setIsCheckingVideoStatus(true);
     try {
       const storyId = storyData.storyId || 'current_story';
+      console.log(`🎬 Checking video status for story: ${storyId}`);
       const response = await fetch(`${API_URL}/api/video-status/${storyId}`);
       const data = await response.json();
 
-      if (data.status === 'completed' && data.video_url) {
+      if (data.status === 'completed' && (data.video_url || data.gcs_url)) {
+        console.log(`✅ Video ready! GCS URL: ${data.gcs_url}, Local URL: ${data.video_url}`);
         setShowVideoPlayer(true);
       } else if (data.status === 'processing' || data.status === 'started') {
         Alert.alert(
@@ -313,6 +322,7 @@ export default function StoryScreen() {
           [{ text: 'OK' }]
         );
       } else {
+        console.log(`🎬 Video status: ${data.status}, letting VideoPlayerScreen handle it`);
         // Not started or error, let the VideoPlayerScreen handle triggering it
         setShowVideoPlayer(true);
       }
@@ -690,7 +700,10 @@ export default function StoryScreen() {
       >
         <VideoPlayerScreen
           storyId={storyData.storyId || 'current_story'}
-          onClose={() => setShowVideoPlayer(false)}
+          onClose={() => {
+            console.log(`📹 Closing video player for story: ${storyData.storyId}`);
+            setShowVideoPlayer(false);
+          }}
           sceneCount={storyData.iteration}
         />
       </Modal>
